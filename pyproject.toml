@@ -14,10 +14,6 @@ keywords = []
 license = { text = "BSD 3-Clause License" }
 dynamic = ["version"]
 
-authors = [
-  {email = "eric_chen@g.harvard.edu", name = "Eric Chen"}
-]
-
 dependencies = [
     "numpy",
     "scipy",
@@ -33,4 +29,5 @@ authors = [
   {email = "javier.marquina.s@gmail.com", name = "Javier Marquina"},
   {email = "imancebo@pa.uc3m.es, name = "Irene Mancebo" },
   {email = "hoblos.h@wehi.edu.au", name = "Hanadi Hoblos"},
+  {email = "eric_chen@g.harvard.edu", name = "Eric Chen"},
 ]
