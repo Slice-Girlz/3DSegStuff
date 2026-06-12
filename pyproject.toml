@@ -23,4 +23,5 @@ authors = [
   {email = "federico.carrara@fht.org", name = "Federico Carrara"},
   {email = "vvenu@utexas.edu", name = "Vijay Venu"},
   {email = "xinyuantx@gmail.com, name = "Xinyuan Zhang"},
+  {email = "morgane.storey@epfl.ch", name = "Morgane Storey"}
 ]
