@@ -21,4 +21,5 @@ dependencies = [
 
 authors = [
   {email = "federico.carrara@fht.org", name = "Federico Carrara"},
+  {email = "vvenu@utexas.edu", name = "Vijay Venu"},
 ]
