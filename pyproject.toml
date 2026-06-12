@@ -18,3 +18,5 @@ dependencies = [
     "scipy",
     "scikit-image",
 ]
+
+authors = [{email = "imancebo@pa.uc3m.es, name = "Irene Mancebo" }]
