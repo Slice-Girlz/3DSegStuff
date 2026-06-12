@@ -13,6 +13,11 @@ classifiers = [
 keywords = []
 license = { text = "BSD 3-Clause License" }
 dynamic = ["version"]
+
+authors = [
+  {email = "eric_chen@g.harvard.edu", name = "Eric Chen"}
+]
+
 dependencies = [
     "numpy",
     "scipy",
