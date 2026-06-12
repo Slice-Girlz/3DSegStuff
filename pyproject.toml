@@ -18,3 +18,6 @@ dependencies = [
     "scipy",
     "scikit-image",
 ]
+
+authors = [
+  {email="ychiu@caltech.edu", name="Yun Chiu"},]
