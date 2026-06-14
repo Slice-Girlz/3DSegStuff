@@ -14,7 +14,7 @@ ZARR_PATH = '/mnt/efs/dl_jrc/student_data/S-MS/raw_data_omezarr/AR163_section1_1
 ZARR_LEVEL = '0'        # This is the name of your lowest resolution zarr folder
 CHANNEL = 0             # This is the channel that you want to do your segmentations in
 XY_PATCH_SIZE = 256     # XY size of patch
-Z_PATCH_SIZE = 3        # Z size of patch
+Z_PATCH_SIZE = 1        # Z size of patch
 BATCH_SIZE = 3          # Choose Batch size appropriately
 Z_PLANE = 15            # REPLACE BY 0 LATER
 
@@ -63,11 +63,12 @@ pipeline = (
     simple_augment + 
     elastic_augment + 
     intensity_augment + 
-    noise_augment)
+    noise_augment + 
+    stack)
 
 ##########################################################
 
-# Request a batch 
+# Request a batch   
 request = gp.BatchRequest()
 request[raw] = Roi(
   offset = (CHANNEL, Z_PLANE, 0, 0),   # This is a placeholder = overwritten by RandomLocation
@@ -80,8 +81,7 @@ with gp.build(pipeline):
 
 # Visualize (2D only)
 print(batch[raw].data.shape)
-#plt.imshow(batch[raw].data.squeeze(0).squeeze(0))
-plt.imshow(batch[raw].data)
+plt.imshow(batch[raw].data.squeeze(0).squeeze(0))
 print(batch[raw].data.squeeze(0).squeeze(0).shape)
 # Should compare to original to make sure it works
 
