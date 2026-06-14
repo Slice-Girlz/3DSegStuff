@@ -177,8 +177,8 @@ def save_to_zarr(
     
     write_labels(
         labels=label,
-        group=root,
-        name="labels",                                 # appears under labels/cells
+        group=grp,
+        name="labels", # appears under labels/cells
         axes=axes,
         storage_options={"chunks": chunk_size},
    )
