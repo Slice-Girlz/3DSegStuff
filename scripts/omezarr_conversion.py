@@ -12,24 +12,25 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--images-dir",
-        type=Path,
+        type=str,
         required=True,
         help="Folder of raw images (.tif/.tiff/.czi/.nd2).",
     )
     parser.add_argument(
         "--masks-dir",
-        type=Path,
+        type=str,
         required=True,
         help="Folder of ground-truth masks (.tif/.tiff/.czi/.nd2).",
     )
     parser.add_argument(
         "--output-dir",
-        type=Path,
-        default=None,
+        type=str,
+        required=True,
         help="Where to write the .ome.zarr files. Default: <images-dir parent>/ome_zarr",
     )
     parser.add_argument(
         "--chunk-size",
+        nargs=4,
         default=(1, 64, 64, 64),
         help="Chunk size (C, Z, Y, X) for both image and label arrays. "
         "Default: (1, 64, 64, 64).",
@@ -53,8 +54,8 @@ def main() -> None:
     args = parse_args()
 
     # Step 1 -- read both directories into list[str]
-    image_files = list_files(args.images_dir)
-    mask_files = list_files(args.masks_dir)
+    image_files = list_files(Path(args.images_dir))
+    mask_files = list_files(Path(args.masks_dir))
 
     print(f"Images dir: {args.images_dir}  ->  {len(image_files)} files")
     print(f"Masks  dir: {args.masks_dir}  ->  {len(mask_files)} files")
@@ -68,8 +69,8 @@ def main() -> None:
         )
 
     # Step 2 -- write each volume to its OWN .ome.zarr (one sample, one frame)
-    out_dir = args.output_dir or (args.images_dir.expanduser().resolve().parent / ".ome.zarr")
-    out_dir = Path(out_dir).expanduser().resolve()
+    out_dir = Path(args.output_dir)
+    out_dir = out_dir.expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output dir: {out_dir}")
 
