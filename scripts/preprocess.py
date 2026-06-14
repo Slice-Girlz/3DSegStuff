@@ -28,7 +28,7 @@ def preprocess(
         elif normalize == 'percentile':
             image_array = percentile_normalize(image_array)
 
-    return image_array, label_array
+    return image_array, label_array # 4D arrays (c, z, y, x)
     
 
 # ==========================
@@ -88,7 +88,7 @@ def check_dtype(
 
 
 def fix_dims(image_dims, array):
-    expected_dims=("t" , "c", "z", "y", "x")
+    expected_dims=("c", "z", "y", "x")
     temp_dims = image_dims
     for i in range(len(expected_dims)):
         dims=expected_dims[i]
@@ -117,7 +117,7 @@ def min_max_normalize(image_array):
 # percentile normalization 
 def percentile_normalize(image_array, pmin=0.5, pmax=99.5):
     # image_array.shape
-    assert image_array.ndim == 5, (f"Expected image_array with 5 dims [t,c,z,y,x], got shape {image_array.shape}")
+    assert image_array.ndim == 5, (f"Expected image_array with 5 dims [c,z,y,x], got shape {image_array.shape}")
 
     norm_array = np.zeros_like(image_array, dtype=np.float32) #create a empty zero array
     
