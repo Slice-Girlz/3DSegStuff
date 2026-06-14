@@ -2,8 +2,9 @@ import argparse
 import shutil
 from pathlib import Path
 
+import numpy as np
 
-from 3DSegStuff.data.io import list_files, load_array, save_to_zarr
+from ThreeDSegStuff.data.io import list_files, load_array, save_to_zarr
 
 
 def parse_args() -> argparse.Namespace:
