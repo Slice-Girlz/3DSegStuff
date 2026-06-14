@@ -30,11 +30,29 @@ def parse_args() -> argparse.Namespace:
         help="Where to write the .ome.zarr files. Default: <images-dir parent>/ome_zarr",
     )
     parser.add_argument(
-        "--axes",
-        default=["t", "c", "z", "y", "x"],
-        help="Axis order of each input array. Default: zyx (your data is 3D Z,Y,X).",
+        "--chunk-size",
+        default=(1, 64, 64, 64),
+        help="Image chunk size (C, Z, Y, X). Default: (1, 64, 64, 64). "
+        "Label chunks are derived as (Z, Y, X).",
     )
     return parser.parse_args()
+
+
+def _as_image(arr: np.ndarray) -> np.ndarray:
+    """Normalize an input image to (C, Z, Y, X)."""
+    if arr.ndim == 3:  # (Z, Y, X) -> add a single channel
+        arr = arr[np.newaxis, ...]
+    if arr.ndim != 4:
+        raise ValueError(f"Expected image with 3 (ZYX) or 4 (CZYX) dims, got shape {arr.shape}")
+    return arr
+
+
+def _as_label(arr: np.ndarray) -> np.ndarray:
+    """Normalize an input label to (Z, Y, X), dropping leading singleton axes."""
+    arr = np.squeeze(arr)
+    if arr.ndim != 3:
+        raise ValueError(f"Expected label reducible to 3 dims (ZYX), got shape {arr.shape}")
+    return arr
 
 
 def main() -> None:
@@ -56,35 +74,37 @@ def main() -> None:
         )
 
     # Step 2 -- load the first of each as a sanity check
-    img0 = load_array(image_files[0])
-    msk0 = load_array(mask_files[0])
-    
-    # tmp, hacky
-    img0 = img0[np.newaxis, np.newaxis, ...]
-    msk0 = msk0[np.newaxis, np.newaxis, ...]
-    
+    img0 = _as_image(load_array(image_files[0]))
+    msk0 = _as_label(load_array(mask_files[0]))
+
     print(f"First image: {Path(image_files[0]).name}  shape={img0.shape}  dtype={img0.dtype}")
     print(f"First mask:  {Path(mask_files[0]).name}  shape={msk0.shape}  dtype={msk0.dtype}")
 
-    # Step 3 -- write each image to its OWN .ome.zarr (no stacking)
+    # Step 3 -- write each volume to its OWN .ome.zarr (one sample, one frame)
     out_dir = args.output_dir or (args.images_dir.expanduser().resolve().parent / "ome_zarr")
     out_dir = Path(out_dir).expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output dir: {out_dir}")
-    
-    chunk_size = (1,1,64,64,64) #T,C,Z,Y,X ~0.5MB per chunk
 
-    #for f in image_files:
+    image_chunks = tuple(args.chunk_size)            # (C, Z, Y, X)
+    label_chunks = tuple(args.chunk_size)[1:]        # (Z, Y, X)
+
     for i in range(len(image_files)):
-        image = load_array(image_files[i])
-        mask = load_array(mask_files[i])
+        image = _as_image(load_array(image_files[i]))
+        mask = _as_label(load_array(mask_files[i]))
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if save_path.exists():
             shutil.rmtree(save_path)
-        save_to_zarr(image=image, label=mask, sample_id=Path(image_files[i]).stem, chunk_size=chunk_size, save_path=save_path, axes=args.axes
-                     #str(out_path), axes=args.axes, 
-                     )
-        print(f"Wrote {save_path.name}  shape={image.shape}  dtype={mask.dtype}")
+        save_to_zarr(
+            image=image,
+            label=mask,
+            save_path=save_path,
+            image_chunks=image_chunks,
+            label_chunks=label_chunks,
+            image_axes="czyx",
+            label_axes="zyx",
+        )
+        print(f"Wrote {save_path.name}  image={image.shape}  label={mask.shape}  dtype={mask.dtype}")
 
     print(f"Done. Wrote {len(image_files)} .ome.zarr files to {out_dir}")
 
