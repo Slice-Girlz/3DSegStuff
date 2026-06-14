@@ -2,9 +2,8 @@ import argparse
 import shutil
 from pathlib import Path
 
-import numpy as np
-
 from ThreeDSegStuff.data.io import list_files, load_array, save_to_zarr
+from ThreeDSegStuff.data.preprocess import preprocess
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,29 +31,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--chunk-size",
         default=(1, 64, 64, 64),
-        help="Image chunk size (C, Z, Y, X). Default: (1, 64, 64, 64). "
-        "Label chunks are derived as (Z, Y, X).",
+        help="Chunk size (C, Z, Y, X) for both image and label arrays. "
+        "Default: (1, 64, 64, 64).",
+    )
+    parser.add_argument(
+        "--image-dims",
+        default="zyx",
+        help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx'). "
+        "Missing axes among (c, z, y, x) are inserted to reach (C, Z, Y, X).",
+    )
+    parser.add_argument(
+        "--normalize",
+        choices=["percentile", "min_max", "none"],
+        default="percentile",
+        help="Image intensity normalization. Default: percentile.",
     )
     return parser.parse_args()
-
-
-def _as_image(arr: np.ndarray) -> np.ndarray:
-    """Normalize an input image to (C, Z, Y, X)."""
-    if arr.ndim == 3:  # (Z, Y, X) -> add a single channel
-        arr = arr[np.newaxis, ...]
-    if arr.ndim != 4:
-        raise ValueError(f"Expected image with 3 (ZYX) or 4 (CZYX) dims, got shape {arr.shape}")
-    return arr
-
-
-def _as_label(arr: np.ndarray) -> np.ndarray:
-    """Normalize an input label to (C, Z, Y, X)."""
-    arr = np.squeeze(arr)  # drop any reader-padded singleton axes first
-    if arr.ndim == 3:  # (Z, Y, X) -> add a single channel
-        arr = arr[np.newaxis, ...]
-    if arr.ndim != 4:
-        raise ValueError(f"Expected label reducible to 3 (ZYX) or 4 (CZYX) dims, got shape {arr.shape}")
-    return arr
 
 
 def main() -> None:
@@ -82,13 +74,20 @@ def main() -> None:
     print(f"Output dir: {out_dir}")
 
     image_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
-    label_chunks = tuple(args.chunk_size)  # (1, Z, Y, X)
+    label_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
 
     for i in range(len(image_files)):
         image, image_meta = load_array(image_files[i])
         mask, _ = load_array(mask_files[i])
-        image = _as_image(image)
-        mask = _as_label(mask)
+        
+        # Homogenize dims to (C, Z, Y, X) and normalize the image
+        image, mask = preprocess(
+            image_array=image,
+            label_array=mask,
+            image_dims=args.image_dims,
+            normalize="percentile",
+        )
+        
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if save_path.exists():
             shutil.rmtree(save_path)
