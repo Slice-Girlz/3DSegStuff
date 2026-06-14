@@ -2,7 +2,7 @@ import argparse
 import shutil
 from pathlib import Path
 
-from ThreeDSegStuff.data.io import list_files, load_array, save_to_zarr
+from ThreeDSegStuff.data.io import list_files, load_array, save_to_zarr_noLabel
 from ThreeDSegStuff.data.preprocess import preprocess_noLabel
 
 
@@ -83,7 +83,7 @@ def main() -> None:
     print(f"Output dir: {out_dir}")
 
     image_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
-    label_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
+    # label_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
 
     for i in range(len(image_files)):
         image, image_meta = load_array(image_files[i])
@@ -102,12 +102,12 @@ def main() -> None:
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if save_path.exists():
             shutil.rmtree(save_path)
-        save_to_zarr(
+            save_to_zarr_noLabel(
             image=image,
             # label=mask,
             save_path=save_path,
             image_chunks=image_chunks,
-            label_chunks=label_chunks,
+            # label_chunks=label_chunks,
             image_axes="czyx",
             # label_axes="czyx",
             image_metadata=image_meta,
