@@ -129,7 +129,11 @@ def _load_czi(path: Path) -> np.ndarray:
         from aicspylibczi import CziFile
     except ImportError as e:
         raise ImportError("Reading .czi needs `aicspylibczi` (pip install aicspylibczi).") from e
-    return np.squeeze(CziFile(str(path)).read_image())
+    
+
+    #return np.squeeze(CziFile(str(path)).read_image()), CziFile(str(path)).metadata()
+    #return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
+    
 
 
 def _load_nd2(path: Path) -> np.ndarray:
@@ -138,7 +142,8 @@ def _load_nd2(path: Path) -> np.ndarray:
         import nd2
     except ImportError as e:
         raise ImportError("Reading .nd2 needs `nd2` (pip install nd2).") from e
-    return nd2.imread(str(path))
+    r#eturn nd2.imread(str(path))
+    return nd2.ND2File(str(path)).imread(), nd2.ND2File(str(path)).metadata()
 
 ##TODO - META DATA LOADING.
 
