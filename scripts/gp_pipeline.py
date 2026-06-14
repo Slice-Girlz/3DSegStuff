@@ -4,19 +4,19 @@
 
 # Imports
 import gunpowder as gp
-from imshow_gp_object import imshow
 from funlib.geometry import Roi 
 from funlib.persistence import open_ds, Array
+from smooth_augment import SmoothAugment
+from helper_imshow_gp import imshow
 
 # PARAMETERS
 ZARR_PATH = '/mnt/efs/dl_jrc/student_data/S-MS/raw_data_omezarr/AR163_section1_1x1__XYPos_0.ome.zarr/0'
-ZARR_LEVEL = '0'        # This is the name of your lowest resolution zarr folder
 CHANNEL = 1             # This is the channel that you want to do your segmentations in
 XY_PATCH_SIZE = 256     # XY size of patch
 Z_PATCH_SIZE = 26       # Z size of patch
-BATCH_SIZE = 4          # Choose Batch size appropriately
+BATCH_SIZE = 4          # Choose batch size appropriately
 PROB_AUGMENT = 0.3      # Probability of noise augments (shared by gaussian and poisson)
-VAR_NOISE = 10e-5      # Variance of gaussian noise
+VAR_NOISE = 10e-5       # Variance of gaussian noise
 
 # Declare data key
 raw = gp.ArrayKey('RAW')
@@ -52,6 +52,7 @@ intensity_augment = gp.IntensityAugment(
   shift_max=0.2)
 gaussian_noise_augment = gp.NoiseAugment(raw, mode='gaussian', p=PROB_AUGMENT, var=VAR_NOISE, clip=True)
 poisson_noise_augment = gp.NoiseAugment(raw, mode='poisson', p=PROB_AUGMENT, clip=True)
+smooth_augment = SmoothAugment(raw, p=PROB_AUGMENT)
 
 # Batch 
 stack = gp.Stack(BATCH_SIZE)
@@ -66,6 +67,7 @@ pipeline = (
     intensity_augment + 
     gaussian_noise_augment + 
     poisson_noise_augment +
+    smooth_augment +
     stack)
 
 ##########################################################
