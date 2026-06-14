@@ -9,10 +9,7 @@ def preprocess(
     normalize : Literal['min_max','percentile'] | None = 'percentile'
 ):
     # Check dtype
-    image_array, label_array = check_dtype(
-        image_array=image_array,
-        label_array=label_array,
-    )
+    check_dtype(image_array=image_array, label_array=label_array)
 
     # Fix dims
     image_array = fix_dims(image_dims, image_array)
@@ -100,7 +97,7 @@ def min_max_normalize(image_array):
     assert image_array.ndim == 4, (f"Expected image_array with 4 dims [c,z,y,x], got shape {image_array.shape}")
     
     norm_array = np.zeros_like(image_array, dtype=np.float32) #create a empty zero array
-    for c in range(image_array.shape[1]):
+    for c in range(image_array.shape[0]):
         volume = image_array[c] # -> volume.shape=(z, y, x)
         v_min = volume.min()
         v_max = volume.max()
@@ -114,7 +111,7 @@ def percentile_normalize(image_array, pmin=0.5, pmax=99.5):
     assert image_array.ndim == 4, (f"Expected image_array with 4 dims [c,z,y,x], got shape {image_array.shape}")
 
     norm_array = np.zeros_like(image_array, dtype=np.float32) #create a empty zero array
-    for c in range(image_array.shape[1]):
+    for c in range(image_array.shape[0]):
         volume = image_array[c]
         v_min = np.percentile(volume, pmin)
         v_max = np.percentile(volume, pmax)
