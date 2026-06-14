@@ -6,6 +6,8 @@ import zarr
 from ome_zarr.io import parse_url
 from ome_zarr.writer import write_image, write_labels
 
+from ThreeDSegStuff.data.metadata import prepare_metadata
+
 
 # File types this pipeline understands. Add an extension here and a matching
 # branch in load_array() to support a new format.
@@ -160,6 +162,11 @@ def save_to_zarr(
     root as a (C, Z, Y, X) multiscale, and the label lives under
     labels/<label_name> as a (C, Z, Y, X) multiscale. Reader-native metadata,
     when provided, is stored on the root group attrs (JSON-coerced).
+
+    funlib.persistence-style spatial metadata (voxel_size, offset, units, ...) is
+    derived from ``image_metadata`` and stamped onto the image and label arrays so
+    the store opens directly in funlib.persistence / funlib.show.neuroglancer /
+    gunpowder. See :mod:`ThreeDSegStuff.data.metadata`.
     """
     if image.ndim != 4:
         raise ValueError(f"Expected image with 4 dims (C, Z, Y, X), got shape {image.shape}")
@@ -191,3 +198,10 @@ def save_to_zarr(
 
     if image_metadata is not None:
         root.attrs["image_metadata"] = _jsonify_metadata(image_metadata)
+
+    # Stamp funlib-style metadata onto the image and label arrays (level 0). The
+    # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
+    funlib_metadata = prepare_metadata(image_metadata)
+    funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
+    root["0"].attrs.update(funlib_metadata)
+    root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
