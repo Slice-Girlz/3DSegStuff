@@ -10,7 +10,24 @@ def preprocess(
     normalize : Literal['min_max','percentile'] | None = 'percentile'
 ):
     # Check dtype
-    check_dtype(image_array=image_array, label_array=label_array)
+    # check_dtype(image_array=image_array, label_array=label_array)
+
+    check_dtype(input_array=image_array,allowed_input_dtypes = [
+        "float64",
+        "float32",
+        "float16",
+        "uint8",
+        "uint16",
+        "uint32",
+    ])
+
+    check_dtype(input_array=label_array, allowed_input_dtypes = [
+        "uint8",
+        "uint16",
+        "uint32",
+    ])
+
+    check_dshape(image_array=image_array, label_array=label_array)
 
     # Fix dims
     image_array = fix_dims(image_array, input_dims=image_dims)
@@ -24,7 +41,99 @@ def preprocess(
             image_array = percentile_normalize(image_array)
 
     return image_array, label_array
-    
+
+
+
+
+def preprocess_noLabel(
+    image_array: np.ndarray, 
+    image_dims: str = "czyx",
+    normalize : Literal['min_max','percentile'] | None = 'percentile'
+):
+    # Check dtype
+    check_dtype(input_array=image_array, allowed_input_dtypes=[
+        "float64",
+        "float32",
+        "float16",
+        "uint8",
+        "uint16",
+        "uint32",
+    ])
+
+    # Fix dims
+    image_array = fix_dims(image_array, input_dims=image_dims)
+
+    # Normalize
+    if normalize is not None:    
+        if normalize == 'min_max':
+            image_array = min_max_normalize(image_array)
+        elif normalize == 'percentile':
+            image_array = percentile_normalize(image_array)
+
+    return image_array
+
+
+# ==========================
+def check_dtype(
+    input_array: np.ndarray,
+
+    allowed_dtypes: list
+):
+
+    # allowed_image_dtypes = [
+    #     "float64",
+    #     "float32",
+    #     "float16",
+    #     "uint8",
+    #     "uint16",
+    #     "uint32",
+    # ],
+    # allowed_label_dtypes = [
+    #     "uint8",
+    #     "uint16",
+    #     "uint32",
+    # ],
+
+    """
+    Check:
+    1. image and label follow standard (c, z, y, x)
+    2. image and label have the same shape
+    3. image dtype is allowed
+    4. label dtype is uint16
+    """
+    input_array = np.asarray(input_array)
+
+    # Check input dtype
+    input_dtype = str(input_array.dtype)
+
+    if input_dtype not in allowed_dtypes:
+        raise TypeError(
+            f"input_array dtype must be one of {allowed_dtypes}, "
+            f"but got {input_dtype}."
+        )
+
+    # if input_array.shape != label_array.shape:
+    #     raise ValueError(
+    #         f"image_array and label_array must have the same shape.\n"
+    #         f"image_array shape: {input_array.shape}\n"
+    #         f"label_array shape: {label_array.shape}"
+    #     )
+
+def check_dshape(
+    image_array: np.ndarray,
+    label_array: np.ndarray,
+):
+    image_array = np.asarray(image_array)
+    label_array = np.asarray(label_array)
+
+    # Check same shape
+    if image_array.shape != label_array.shape:
+        raise ValueError(
+            f"image_array and label_array must have the same shape.\n"
+            f"image_array shape: {image_array.shape}\n"
+            f"label_array shape: {label_array.shape}"
+        )
+
 
 # ==========================
 def check_dtype(
