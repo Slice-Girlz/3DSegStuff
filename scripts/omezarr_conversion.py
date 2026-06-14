@@ -139,7 +139,7 @@ def _load_nd2(path: Path) -> np.ndarray:
         import nd2
     except ImportError as e:
         raise ImportError("Reading .nd2 needs `nd2` (pip install nd2).") from e
-    r#eturn nd2.imread(str(path))
+    #eturn nd2.imread(str(path))
     return nd2.ND2File(str(path)).imread(), nd2.ND2File(str(path)).metadata()
 
 ##TODO - META DATA LOADING.
