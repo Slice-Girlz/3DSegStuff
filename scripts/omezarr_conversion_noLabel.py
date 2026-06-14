@@ -43,12 +43,12 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx').",
     )
-    parser.add_argument(
-        "--label-dims",
-        type=str,
-        required=True,
-        help="Axis layout of the raw loaded label arrays (e.g. 'zyx' or 'czyx').",
-    )
+    # parser.add_argument(
+    #     "--label-dims",
+    #     type=str,
+    #     required=True,
+    #     help="Axis layout of the raw loaded label arrays (e.g. 'zyx' or 'czyx').",
+    # )
     parser.add_argument(
         "--normalize",
         choices=["percentile", "min_max", "none"],
@@ -101,7 +101,7 @@ def main() -> None:
         
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if save_path.exists():
-            shutil.rmtree(save_path)
+            shutil.rmtregite(save_path)
             save_to_zarr_noLabel(
             image=image,
             # label=mask,
