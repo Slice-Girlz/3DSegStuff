@@ -4,19 +4,19 @@
 
 # Imports
 import gunpowder as gp
-import matplotlib.pyplot as plt
+from imshow_gp_object import imshow
 from funlib.geometry import Roi 
 from funlib.persistence import open_ds, Array
-
 
 # PARAMETERS
 ZARR_PATH = '/mnt/efs/dl_jrc/student_data/S-MS/raw_data_omezarr/AR163_section1_1x1__XYPos_0.ome.zarr/0'
 ZARR_LEVEL = '0'        # This is the name of your lowest resolution zarr folder
-CHANNEL = 0             # This is the channel that you want to do your segmentations in
+CHANNEL = 1             # This is the channel that you want to do your segmentations in
 XY_PATCH_SIZE = 256     # XY size of patch
-Z_PATCH_SIZE = 1        # Z size of patch
-BATCH_SIZE = 3          # Choose Batch size appropriately
-Z_PLANE = 15            # REPLACE BY 0 LATER
+Z_PATCH_SIZE = 26       # Z size of patch
+BATCH_SIZE = 4          # Choose Batch size appropriately
+PROB_AUGMENT = 0.3      # Probability of noise augments (shared by gaussian and poisson)
+VAR_NOISE = 10e-5      # Variance of gaussian noise
 
 # Declare data key
 raw = gp.ArrayKey('RAW')
@@ -40,7 +40,7 @@ simple_augment = gp.SimpleAugment(
 )
 elastic_augment = gp.DeformAugment(
   control_point_spacing = (10 * vs[-2], 10 * vs[-1]),
-  jitter_sigma = (2 * vs[-2], 2 * vs[-1]),
+  jitter_sigma = (1.5 * vs[-2], 1.5 * vs[-1]),
   rotate = True, 
   spatial_dims = 2            # Only deform XY
 )
@@ -50,7 +50,8 @@ intensity_augment = gp.IntensityAugment(
   scale_max=1.2,
   shift_min=0.2,
   shift_max=0.2)
-noise_augment = gp.NoiseAugment(raw, mode='gaussian', p=0.3, var=10e-8)
+gaussian_noise_augment = gp.NoiseAugment(raw, mode='gaussian', p=PROB_AUGMENT, var=VAR_NOISE, clip=True)
+poisson_noise_augment = gp.NoiseAugment(raw, mode='poisson', p=PROB_AUGMENT, clip=True)
 
 # Batch 
 stack = gp.Stack(BATCH_SIZE)
@@ -63,7 +64,8 @@ pipeline = (
     simple_augment + 
     elastic_augment + 
     intensity_augment + 
-    noise_augment + 
+    gaussian_noise_augment + 
+    poisson_noise_augment +
     stack)
 
 ##########################################################
@@ -71,7 +73,7 @@ pipeline = (
 # Request a batch   
 request = gp.BatchRequest()
 request[raw] = Roi(
-  offset = (CHANNEL, Z_PLANE, 0, 0),   # This is a placeholder = overwritten by RandomLocation
+  offset = (CHANNEL, 0, 0, 0),
   shape = (1, Z_PATCH_SIZE, XY_PATCH_SIZE, XY_PATCH_SIZE))
 
 # Build the pipeline
@@ -81,8 +83,7 @@ with gp.build(pipeline):
 
 # Visualize (2D only)
 print(batch[raw].data.shape)
-plt.imshow(batch[raw].data.squeeze(0).squeeze(0))
-print(batch[raw].data.squeeze(0).squeeze(0).shape)
+imshow(batch[raw].data, z_plane=13)
 # Should compare to original to make sure it works
 
 # Do same ish for mask.omezarr
