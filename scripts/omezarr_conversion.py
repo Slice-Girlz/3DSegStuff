@@ -29,7 +29,7 @@ Implemented here
 Install (per format you actually use)
 --------------------------------------
     python -m pip install numpy tifffile ome-zarr zarr   # always
-    python -m pip install czifile                        # for .czi
+    python -m pip install aicspylibczi                        # for .czi
     python -m pip install nd2                             # for .nd2
 """
 
@@ -41,20 +41,14 @@ import shutil
 from pathlib import Path
 
 import numpy as np
+import zarr
+from ome_zarr.io import parse_url
+from ome_zarr.writer import write_image, write_labels
 
 
 # File types this pipeline understands. Add an extension here and a matching
 # branch in load_array() to support a new format.
 SUPPORTED_EXTENSIONS: tuple[str, ...] = (".tif", ".tiff", ".czi", ".nd2")
-
-
-# ---------------------------------------------------------------------------
-# Sorting helper
-# ---------------------------------------------------------------------------
-def natural_key(path: Path):
-    """Sort 1.tif, 2.tif, ..., 10.tif in human order instead of 1, 10, 11, 2."""
-    parts = re.split(r"(\d+)", path.stem)
-    return [int(p) if p.isdigit() else p.lower() for p in parts]
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +71,6 @@ def list_files(directory: str | Path) -> list[str]:
             for p in directory.iterdir()
             if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
         ),
-        key=natural_key,
     )
     if not files:
         raise FileNotFoundError(
@@ -128,15 +121,15 @@ def _load_czi(path: Path) -> np.ndarray:
     """
     Read a Zeiss .czi file.
 
-    czifile returns an array padded with several length-1 dimensions
+    aicspylibczi returns an array padded with several length-1 dimensions
     (e.g. B, V, C, T, Z, Y, X, 0). We squeeze the singletons so the result is a
     clean array comparable to a tif read (e.g. ZYX or CZYX).
     """
     try:
-        import czifile
+        from aicspylibczi import CziFile
     except ImportError as e:
-        raise ImportError("Reading .czi needs `czifile` (pip install czifile).") from e
-    return np.squeeze(czifile.imread(str(path)))
+        raise ImportError("Reading .czi needs `aicspylibczi` (pip install aicspylibczi).") from e
+    return np.squeeze(CziFile(str(path)).read_image())
 
 
 def _load_nd2(path: Path) -> np.ndarray:
@@ -147,47 +140,49 @@ def _load_nd2(path: Path) -> np.ndarray:
         raise ImportError("Reading .nd2 needs `nd2` (pip install nd2).") from e
     return nd2.imread(str(path))
 
+##TODO - META DATA LOADING.
+
+##PRE-PROCESSING OUTPUT in T, C, Z, Y, X
+##PREPROCESSING ENSURES LABEL AND IMAGE HAS SAME SHAPE
 
 # ---------------------------------------------------------------------------
-# Step 3: write one array to an .ome.zarr  (colleague's save_to_zarr, debugged)
+# Step 3: write one array to one .ome.zarr that includes images and masks
 # ---------------------------------------------------------------------------
 def save_to_zarr(
-                arrays,
-                path,
-                **zarr_parameters):
-
-    """ Saves the chunked arrays in an ome-zarr file.
-
-    Args:
-        Arrays: a list of chunked arrays
-        Path: file path of where to save the data
-
-        zarr_parameters: flexible arguments that you will pass in as metadata. If they are the specific
-
-    Returns:
-        none, saves an ome-zarr object at specified path.
-
-    Raises
-    """
-    assert (arrays is not None), "arrays are missing"
-    assert (path is not None), "path is missing"
-
-    try:
-        zarr_parameters
-        print("Metadata detected. \n")
-        print(*zarr_parameters)
-
-    except NameError:
-        print("No metadata detected for ", path)
-
-    from ome_zarr.writer import write_image
-
+    image,
+    label,
+    chunk_size,
+    sample_id,
+    save_path = "./dataset.zarr",
+    axes = "tcxyz",
+):
+    if axes != "tczyx":
+        raise ValueError("Expected axes T C Z Y X")
+    
+    if len(chunk_size) != 3:
+        raise ValueError("Expected chunk_size must have 3 items")
+    
+    store = parse_url(save_path, mode="w").store
+    root = zarr.group(store=store)
+    
+    grp = root.create_group(sample_id)
+    
     write_image(
-        image=arrays,
-        group=path,
-        **zarr_parameters
+        image=image,
+        group=grp,
+        axes=axes,
+        storage_options={"chunks": chunk_size},
+        scaler= None,
     )
-
+    
+    write_labels(
+        labels=label,
+        group=root,
+        name="labels",                                 # appears under labels/cells
+        axes=axes,
+        storage_options={"chunks": chunk_size},
+   )
+  
 
 # ---------------------------------------------------------------------------
 # CLI / driver
