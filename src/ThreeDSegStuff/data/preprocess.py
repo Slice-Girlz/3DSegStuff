@@ -31,7 +31,8 @@ def preprocess(
 
     # Fix dims
     image_array = fix_dims(image_array, input_dims=image_dims)
-    label_array = fix_dims(label_array, input_dims=label_dims)
+    label_array = fix_dims(label_array, input_dims=label_dims).astype(np.uint32)
+    
 
     # Normalize
     if normalize is not None:    
@@ -124,7 +125,8 @@ def check_dshape(
     label_array: np.ndarray,
 ):
     image_array = np.asarray(image_array)
-    label_array = np.asarray(label_array)
+    label_array = np.asarray(label_array).astype(np.uint32)
+    
 
     # Check same shape
     if image_array.shape != label_array.shape:
@@ -133,62 +135,6 @@ def check_dshape(
             f"image_array shape: {image_array.shape}\n"
             f"label_array shape: {label_array.shape}"
         )
-
-
-# # ==========================
-# def check_dtype(
-#     image_array: np.ndarray,
-#     label_array: np.ndarray,
-#     allowed_image_dtypes = [
-#         "float64",
-#         "float32",
-#         "float16",
-#         "uint8",
-#         "uint16",
-#         "uint32",
-#     ],
-#     allowed_label_dtypes = [
-#         "uint8",
-#         "uint16",
-#         "uint32",
-#     ],
-# ):
-#     """
-#     Check:
-#     1. image and label follow standard (c, z, y, x)
-#     2. image and label have the same shape
-#     3. image dtype is allowed
-#     4. label dtype is uint16
-#     """
-#     image_array = np.asarray(image_array)
-#     label_array = np.asarray(label_array)
-
-#     # Check same shape
-#     if image_array.shape != label_array.shape:
-#         raise ValueError(
-#             f"image_array and label_array must have the same shape.\n"
-#             f"image_array shape: {image_array.shape}\n"
-#             f"label_array shape: {label_array.shape}"
-#         )
-
-#     # Check image dtype
-#     image_dtype = str(image_array.dtype)
-
-#     if image_dtype not in allowed_image_dtypes:
-#         raise TypeError(
-#             f"image_array dtype must be one of {allowed_image_dtypes}, "
-#             f"but got {image_dtype}."
-#         )
-
-#     # Check label dtype
-#     label_dtype = str(label_array.dtype)
-
-#     if label_dtype not in allowed_label_dtypes:
-#         raise TypeError(
-#             f"label_array dtype must be one of {allowed_label_dtypes}, "
-#             f"but got {label_dtype}."
-#         )
-
 
 def fix_dims(array, input_dims):
     """
