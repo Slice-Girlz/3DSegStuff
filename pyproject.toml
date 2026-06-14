@@ -36,7 +36,8 @@ dependencies = [
     "aicspylibczi",
     "nd2",
     "tifffile",
-    "matplotlib"
+    "matplotlib",
+    "lxml"
 ]
 
 [project.optional-dependencies]
