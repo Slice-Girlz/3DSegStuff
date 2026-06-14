@@ -36,10 +36,10 @@ def parse_args() -> argparse.Namespace:
         "Default: (1, 64, 64, 64).",
     )
     parser.add_argument(
-        "--image-dims",
-        default="zyx",
-        help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx'). "
-        "Missing axes among (c, z, y, x) are inserted to reach (C, Z, Y, X).",
+        "--input-dims",
+        type=str,
+        required=True,
+        help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx').",
     )
     parser.add_argument(
         "--normalize",
@@ -85,7 +85,7 @@ def main() -> None:
         image, mask = preprocess(
             image_array=image,
             label_array=mask,
-            image_dims=args.image_dims,
+            image_dims=args.input_dims,
             normalize="percentile",
         )
         

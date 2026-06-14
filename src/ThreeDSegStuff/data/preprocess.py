@@ -12,8 +12,8 @@ def preprocess(
     check_dtype(image_array=image_array, label_array=label_array)
 
     # Fix dims
-    image_array = fix_dims(image_dims, image_array)
-    label_array = fix_dims(image_dims, label_array)
+    image_array = fix_dims(image_array, input_dims=image_dims)
+    label_array = fix_dims(label_array, input_dims=image_dims)
 
     # Normalize
     if normalize is not None:    
@@ -80,15 +80,46 @@ def check_dtype(
         )
 
 
-def fix_dims(image_dims, array):
-    expected_dims=("c", "z", "y", "x")
-    temp_dims = image_dims
-    for i in range(len(expected_dims)):
-        dims=expected_dims[i]
-        is_present = (dims in temp_dims)
-        if not is_present:
-            array = np.expand_dims(array, i)
-    return array 
+def fix_dims(array, input_dims):
+    """
+    Reorder (and pad) the axes of `array` so it follows the standard ``czyx`` layout.
+
+    Existing axes named in `input_dims` are transposed into ``czyx`` order, and any
+    of ``c``, ``z``, ``y``, ``x`` that are missing are inserted as singleton axes.
+
+    Ex: ``input_dims="xycz"`` with an array of shape ``(X, Y, C, Z)`` returns an
+    array of shape ``(C, Z, Y, X)``.
+    """
+    target_dims = "czyx"
+    input_dims = input_dims.lower()
+
+    # Validate input dims string
+    if len(set(input_dims)) != len(input_dims):
+        raise ValueError(f"input_dims must not contain duplicate axes, got '{input_dims}'.")
+    
+    unknown = set(input_dims) - set(target_dims)
+    if unknown:
+        raise ValueError(
+            f"input_dims contains unknown axes {sorted(unknown)}, "
+            f"allowed axes are {sorted(target_dims)}."
+        )
+    if len(input_dims) != array.ndim:
+        raise ValueError(
+            f"input_dims '{input_dims}' has {len(input_dims)} axes, "
+            f"but array has {array.ndim} dimensions."
+        )
+
+    # Insert missing axes as singletons (prepended), tracking their names
+    current_dims = list(input_dims)
+    for d in target_dims:
+        if d not in current_dims:
+            array = np.expand_dims(array, axis=0)
+            current_dims.insert(0, d)
+
+    # Transpose into czyx order
+    order = [current_dims.index(d) for d in target_dims]
+    array = np.transpose(array, order)
+    return array
 
 
 # min_max_normalization
