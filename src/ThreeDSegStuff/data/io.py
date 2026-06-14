@@ -194,10 +194,11 @@ def save_to_zarr(
         name=label_name,  # appears under labels/<label_name>
         axes=label_axes,
         storage_options={"chunks": label_chunks},
+        scaler=None,
     )
 
     if image_metadata is not None:
-        root.attrs["image_metadata"] = _jsonify_metadata(image_metadata)
+        root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
 
     # Stamp funlib-style metadata onto the image and label arrays (level 0). The
     # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
