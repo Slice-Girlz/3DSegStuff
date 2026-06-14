@@ -88,12 +88,12 @@ def _load_czi(path: Path) -> np.ndarray:
     try:
         from aicspylibczi import CziFile
     except ImportError as e:
-        raise ImportError("Reading .czi needs `aicspylibczi` (pip install aicspylibczi).") from e
-    
+        raise ImportError(
+            "Reading .czi needs `aicspylibczi` (pip install aicspylibczi)."
+        ) from e
+    data, _ = CziFile(str(path)).read_image()
+    return np.squeeze(data)
 
-    #return np.squeeze(CziFile(str(path)).read_image()), CziFile(str(path)).metadata()
-    return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
-    
 
 
 def _load_nd2(path: Path) -> np.ndarray:
