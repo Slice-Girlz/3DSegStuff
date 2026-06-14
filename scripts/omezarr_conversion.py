@@ -154,15 +154,16 @@ def save_to_zarr(
     image,
     label,
     sample_id,
-    chunk_size = (128, 128, 128),
+    chunk_size, #(,,,)
     save_path = "./dataset.zarr",
     axes = "tcxyz",
 ):
-    if axes != "tczyx":
-        raise ValueError("Expected axes T C Z Y X")
+    # if axes != "tczyx":
+    #     print(axes)
+    #     raise ValueError("Expected axes T C Z Y X")
     
-    if len(chunk_size) != 3:
-        raise ValueError("Expected chunk_size must have 3 items")
+    if len(chunk_size) != 5:
+        raise ValueError("Expected chunk_size must have 5 items")
     
     store = parse_url(save_path, mode="w").store
     root = zarr.group(store=store)
@@ -213,7 +214,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--axes",
-        default="zyx",
+        default=["t", "c", "z", "y", "x"],
         help="Axis order of each input array. Default: zyx (your data is 3D Z,Y,X).",
     )
     return parser.parse_args()
@@ -240,6 +241,11 @@ def main() -> None:
     # Step 2 -- load the first of each as a sanity check
     img0 = load_array(image_files[0])
     msk0 = load_array(mask_files[0])
+    
+    # tmp, hacky
+    img0 = img0[np.newaxis, np.newaxis, ...]
+    msk0 = msk0[np.newaxis, np.newaxis, ...]
+    
     print(f"First image: {Path(image_files[0]).name}  shape={img0.shape}  dtype={img0.dtype}")
     print(f"First mask:  {Path(mask_files[0]).name}  shape={msk0.shape}  dtype={msk0.dtype}")
 
@@ -248,18 +254,20 @@ def main() -> None:
     out_dir = Path(out_dir).expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output dir: {out_dir}")
+    
+    chunk_size = (1,1,64,64,64) #T,C,Z,Y,X ~0.5MB per chunk
 
     #for f in image_files:
     for i in range(len(image_files)):
         image = load_array(image_files[i])
         mask = load_array(mask_files[i])
-        out_path = out_dir / f"{Path(f).stem}.ome.zarr"
-        if out_path.exists():
-            shutil.rmtree(out_path)
-        save_to_zarr(image, mask, sample_id = image_files[i], 
+        save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
+        if save_path.exists():
+            shutil.rmtree(save_path)
+        save_to_zarr(image=image, label=mask, sample_id=Path(image_files[i]).stem, chunk_size=chunk_size, save_path=save_path, axes=args.axes
                      #str(out_path), axes=args.axes, 
                      )
-        print(f"Wrote {out_path.name}  shape={image.shape}  dtype={mask.dtype}")
+        print(f"Wrote {save_path.name}  shape={image.shape}  dtype={mask.dtype}")
 
     print(f"Done. Wrote {len(image_files)} .ome.zarr files to {out_dir}")
 
