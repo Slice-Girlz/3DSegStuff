@@ -2,15 +2,12 @@ import numpy as np
 from typing import Literal
 
 
-
 def preprocess(
     image_array: np.ndarray, 
     label_array: np.ndarray, 
     image_dims, 
     normalize : Literal['min_max','percentile'] | None = 'percentile'
 ):
-    
-
     # Check dtype
     image_array, label_array = check_dtype(
         image_array=image_array,
@@ -51,12 +48,11 @@ def check_dtype(
 ):
     """
     Check:
-    1. image and label follow standard (t, c, z, y, x)
+    1. image and label follow standard (c, z, y, x)
     2. image and label have the same shape
     3. image dtype is allowed
     4. label dtype is uint16
     """
-
     image_array = np.asarray(image_array)
     label_array = np.asarray(label_array)
 
@@ -88,7 +84,7 @@ def check_dtype(
 
 
 def fix_dims(image_dims, array):
-    expected_dims=("t" , "c", "z", "y", "x")
+    expected_dims=("c", "z", "y", "x")
     temp_dims = image_dims
     for i in range(len(expected_dims)):
         dims=expected_dims[i]
@@ -98,37 +94,30 @@ def fix_dims(image_dims, array):
     return array 
 
 
-
-
-
 # min_max_normalization
 def min_max_normalize(image_array):
-    norm_array = np.zeros_like(image_array, dtype=np.float32) #create a empty zero array
     
-    for t in range(image_array.shape[0]):
-        for c in range(image_array.shape[1]):
-            volume = image_array[t, c]      # -> volume.shape=(z, y, x)
-            v_min = volume.min()
-            v_max = volume.max()
-            norm_array[t, c] = ((volume - v_min) / (v_max - v_min + 1e-8))
+    assert image_array.ndim == 4, (f"Expected image_array with 4 dims [c,z,y,x], got shape {image_array.shape}")
+    
+    norm_array = np.zeros_like(image_array, dtype=np.float32) #create a empty zero array
+    for c in range(image_array.shape[1]):
+        volume = image_array[c] # -> volume.shape=(z, y, x)
+        v_min = volume.min()
+        v_max = volume.max()
+        norm_array[c] = ((volume - v_min) / (v_max - v_min + 1e-8))
     return norm_array
 
 
 # percentile normalization 
 def percentile_normalize(image_array, pmin=0.5, pmax=99.5):
-    # image_array.shape
-    assert image_array.ndim == 5, (f"Expected image_array with 5 dims [t,c,z,y,x], got shape {image_array.shape}")
+    
+    assert image_array.ndim == 4, (f"Expected image_array with 4 dims [c,z,y,x], got shape {image_array.shape}")
 
     norm_array = np.zeros_like(image_array, dtype=np.float32) #create a empty zero array
-    
-    for t in range(image_array.shape[0]):
-        for c in range(image_array.shape[1]):
-            volume = image_array[t, c]
-            v_min = np.percentile(volume, pmin)
-            v_max = np.percentile(volume, pmax)
-            norm_array[t, c] = np.clip((volume - v_min) / (v_max - v_min + 1e-8), 0, 1)
+    for c in range(image_array.shape[1]):
+        volume = image_array[c]
+        v_min = np.percentile(volume, pmin)
+        v_max = np.percentile(volume, pmax)
+        norm_array[c] = np.clip((volume - v_min) / (v_max - v_min + 1e-8), 0, 1)
 
     return norm_array
-
-
-

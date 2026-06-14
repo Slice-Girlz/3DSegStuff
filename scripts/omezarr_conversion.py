@@ -48,10 +48,12 @@ def _as_image(arr: np.ndarray) -> np.ndarray:
 
 
 def _as_label(arr: np.ndarray) -> np.ndarray:
-    """Normalize an input label to (Z, Y, X), dropping leading singleton axes."""
-    arr = np.squeeze(arr)
-    if arr.ndim != 3:
-        raise ValueError(f"Expected label reducible to 3 dims (ZYX), got shape {arr.shape}")
+    """Normalize an input label to (C, Z, Y, X)."""
+    arr = np.squeeze(arr)  # drop any reader-padded singleton axes first
+    if arr.ndim == 3:  # (Z, Y, X) -> add a single channel
+        arr = arr[np.newaxis, ...]
+    if arr.ndim != 4:
+        raise ValueError(f"Expected label reducible to 3 (ZYX) or 4 (CZYX) dims, got shape {arr.shape}")
     return arr
 
 
@@ -73,25 +75,20 @@ def main() -> None:
             f"!= mask count ({len(mask_files)}). They should pair 1:1."
         )
 
-    # Step 2 -- load the first of each as a sanity check
-    img0 = _as_image(load_array(image_files[0]))
-    msk0 = _as_label(load_array(mask_files[0]))
-
-    print(f"First image: {Path(image_files[0]).name}  shape={img0.shape}  dtype={img0.dtype}")
-    print(f"First mask:  {Path(mask_files[0]).name}  shape={msk0.shape}  dtype={msk0.dtype}")
-
-    # Step 3 -- write each volume to its OWN .ome.zarr (one sample, one frame)
-    out_dir = args.output_dir or (args.images_dir.expanduser().resolve().parent / "ome_zarr")
+    # Step 2 -- write each volume to its OWN .ome.zarr (one sample, one frame)
+    out_dir = args.output_dir or (args.images_dir.expanduser().resolve().parent / ".ome.zarr")
     out_dir = Path(out_dir).expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output dir: {out_dir}")
 
-    image_chunks = tuple(args.chunk_size)            # (C, Z, Y, X)
-    label_chunks = tuple(args.chunk_size)[1:]        # (Z, Y, X)
+    image_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
+    label_chunks = tuple(args.chunk_size)  # (1, Z, Y, X)
 
     for i in range(len(image_files)):
-        image = _as_image(load_array(image_files[i]))
-        mask = _as_label(load_array(mask_files[i]))
+        image, image_meta = load_array(image_files[i])
+        mask, _ = load_array(mask_files[i])
+        image = _as_image(image)
+        mask = _as_label(mask)
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if save_path.exists():
             shutil.rmtree(save_path)
@@ -102,7 +99,8 @@ def main() -> None:
             image_chunks=image_chunks,
             label_chunks=label_chunks,
             image_axes="czyx",
-            label_axes="zyx",
+            label_axes="czyx",
+            image_metadata=image_meta,
         )
         print(f"Wrote {save_path.name}  image={image.shape}  label={mask.shape}  dtype={mask.dtype}")
 

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -40,44 +41,46 @@ def list_files(directory: str | Path) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Step 2: load one file (multiple extensions) into np.ndarray
+# Step 2: load one file (multiple extensions) into (np.ndarray, metadata)
 # ---------------------------------------------------------------------------
-def load_array(path: str | Path) -> np.ndarray:
+def load_array(path: str | Path) -> tuple[np.ndarray, object | None]:
     """
-    Load a single microscopy file into a NumPy array.
+    Load a single microscopy file into ``(array, metadata)``.
 
     Dispatches on the file extension (if/else). Reader libraries are imported
     lazily inside the helpers, so you only need the library for the formats you
-    actually open.
+    actually open. ``metadata`` is the reader-native object (or ``None`` for
+    formats we don't extract it from yet) and is passed through untouched.
     """
     path = Path(path)
     ext = path.suffix.lower()
 
     if ext in (".tif", ".tiff"):
-        arr = _load_tiff(path)
+        arr, meta = _load_tiff(path)
     elif ext == ".czi":
-        arr = _load_czi(path)
+        arr, meta = _load_czi(path)
     elif ext == ".nd2":
-        arr = _load_nd2(path)
+        arr, meta = _load_nd2(path)
     else:
         raise ValueError(
             f"Unsupported extension {ext!r} for {path.name}. "
             f"Supported: {', '.join(SUPPORTED_EXTENSIONS)}"
         )
-    return np.asarray(arr)
+    return np.asarray(arr), meta
 
 
-def _load_tiff(path: Path) -> np.ndarray:
+def _load_tiff(path: Path) -> tuple[np.ndarray, object | None]:
     try:
         import tifffile
     except ImportError as e:
         raise ImportError(
             "Reading .tif/.tiff needs `tifffile` (pip install tifffile)."
         ) from e
-    return tifffile.imread(str(path))
+    # tifffile metadata is format-dependent; not extracted yet.
+    return tifffile.imread(str(path)), None
 
 
-def _load_czi(path: Path) -> np.ndarray:
+def _load_czi(path: Path) -> tuple[np.ndarray, object | None]:
     """
     Read a Zeiss .czi file.
 
@@ -88,63 +91,103 @@ def _load_czi(path: Path) -> np.ndarray:
     try:
         from aicspylibczi import CziFile
     except ImportError as e:
-        raise ImportError(
-            "Reading .czi needs `aicspylibczi` (pip install aicspylibczi)."
-        ) from e
-    data, _ = CziFile(str(path)).read_image()
-    return np.squeeze(data)
+        raise ImportError("Reading .czi needs `aicspylibczi` (pip install aicspylibczi).") from e
+
+    czi = CziFile(str(path))
+    # read_image() returns (data, shape_dims); we only want the array.
+    data, _ = czi.read_image()
+    return np.squeeze(data), czi.meta  # czi.meta is the metadata XML element
 
 
-
-def _load_nd2(path: Path) -> np.ndarray:
-    """Read a Nikon .nd2 file with the `nd2` package (returns a NumPy array)."""
+def _load_nd2(path: Path) -> tuple[np.ndarray, object | None]:
+    """Read a Nikon .nd2 file with the `nd2` package."""
     try:
         import nd2
     except ImportError as e:
         raise ImportError("Reading .nd2 needs `nd2` (pip install nd2).") from e
-    #eturn nd2.imread(str(path))
-    return nd2.ND2File(str(path)).imread(), nd2.ND2File(str(path)).metadata()
 
-##TODO - META DATA LOADING.
+    # `metadata` is a cached_property (attribute, not a method); `asarray()`
+    # returns the NumPy array. Use a context manager so the handle is closed.
+    with nd2.ND2File(str(path)) as f:
+        return f.asarray(), f.metadata
 
-##PRE-PROCESSING OUTPUT in T, C, Z, Y, X
+##PRE-PROCESSING OUTPUT in C, Z, Y, X
 ##PREPROCESSING ENSURES LABEL AND IMAGE HAS SAME SHAPE
 
+
+def _jsonify_metadata(meta: object | None) -> object | None:
+    """
+    Coerce reader-native metadata into something zarr can store in attrs (JSON).
+
+    Returns the object untouched if already JSON-serializable, an XML string for
+    lxml elements (e.g. .czi metadata), or ``str(meta)`` as a last resort.
+    """
+    if meta is None:
+        return None
+    try:
+        json.dumps(meta)
+        return meta
+    except (TypeError, ValueError):
+        pass
+    
+    try:
+        from lxml import etree
+        if isinstance(meta, etree._Element):
+            return etree.tostring(meta, pretty_print=True).decode()
+    except ImportError:
+        pass
+    return str(meta)
+
+
 # ---------------------------------------------------------------------------
-# Step 3: write one array to one .ome.zarr that includes images and masks
+# Step 3: write one volume (image + label) to its OWN .ome.zarr
 # ---------------------------------------------------------------------------
 def save_to_zarr(
-    image,
-    label,
-    sample_id,
-    chunk_size, #(,,,)
-    save_path = "./dataset.zarr",
-    axes = "tcxyz",
+    image: np.ndarray, # (C, Z, Y, X)
+    label: np.ndarray, # (C, Z, Y, X)
+    save_path="./volume.ome.zarr", # path to ONE .ome.zarr (one sample, one frame)
+    image_chunks=(1, 64, 64, 64), # C, Z, Y, X
+    label_chunks=(1, 64, 64, 64), # C, Z, Y, X
+    image_axes="czyx",
+    label_axes="czyx",
+    label_name="labels",
+    image_metadata=None,
 ):
-    # if axes != "tczyx":
-    #     print(axes)
-    #     raise ValueError("Expected axes T C Z Y X")
-    
-    if len(chunk_size) != 5:
-        raise ValueError("Expected chunk_size must have 5 items")
-    
+    """
+    Write a single volume to its own OME-Zarr store at the store root.
+
+    Each .ome.zarr holds exactly one sample at one frame: the image lives at the
+    root as a (C, Z, Y, X) multiscale, and the label lives under
+    labels/<label_name> as a (C, Z, Y, X) multiscale. Reader-native metadata,
+    when provided, is stored on the root group attrs (JSON-coerced).
+    """
+    if image.ndim != 4:
+        raise ValueError(f"Expected image with 4 dims (C, Z, Y, X), got shape {image.shape}")
+    if label.ndim != 4:
+        raise ValueError(f"Expected label with 4 dims (C, Z, Y, X), got shape {label.shape}")
+    if len(image_chunks) != 4:
+        raise ValueError("Expected image_chunks must have 4 items (C, Z, Y, X)")
+    if len(label_chunks) != 4:
+        raise ValueError("Expected label_chunks must have 4 items (C, Z, Y, X)")
+
     store = parse_url(save_path, mode="w").store
     root = zarr.group(store=store)
-    
-    grp = root.create_group(sample_id)
-    
+
     write_image(
         image=image,
-        group=grp,
-        axes=axes,
-        storage_options={"chunks": chunk_size},
-        scaler= None,
+        group=root,
+        axes=image_axes,
+        storage_options={"chunks": image_chunks},
+        scaler=None,
     )
-    
+
     write_labels(
         labels=label,
-        group=grp,
-        name="labels", # appears under labels/cells
-        axes=axes,
-        storage_options={"chunks": chunk_size},
-   )
+        group=root,
+        name=label_name,  # appears under labels/<label_name>
+        axes=label_axes,
+        storage_options={"chunks": label_chunks},
+    )
+
+    if image_metadata is not None:
+        root.attrs["image_metadata"] = _jsonify_metadata(image_metadata)
