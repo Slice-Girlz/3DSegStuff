@@ -51,7 +51,7 @@ def preprocess_noLabel(
     normalize : Literal['min_max','percentile'] | None = 'percentile'
 ):
     # Check dtype
-    check_dtype(input_array=image_array, allowed_input_dtypes=[
+    check_dtype(input_array=image_array, allowed_dtypes=[
         "float64",
         "float32",
         "float16",
