@@ -12,7 +12,7 @@ def preprocess(
     # Check dtype
     # check_dtype(image_array=image_array, label_array=label_array)
 
-    check_dtype(input_array=image_array,allowed_input_dtypes = [
+    check_dtype(input_array=image_array,allowed_dtypes = [
         "float64",
         "float32",
         "float16",
@@ -21,7 +21,7 @@ def preprocess(
         "uint32",
     ])
 
-    check_dtype(input_array=label_array, allowed_input_dtypes = [
+    check_dtype(input_array=label_array, allowed_dtypes = [
         "uint8",
         "uint16",
         "uint32",
