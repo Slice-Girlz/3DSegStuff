@@ -16,13 +16,6 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Folder of raw images (.tif/.tiff/.czi/.nd2).",
     )
-
-    # parser.add_argument(
-    #     "--masks-dir",
-    #     type=str,
-    #     required=True,
-    #     help="Folder of ground-truth masks (.tif/.tiff/.czi/.nd2).",
-    # )
     
     parser.add_argument(
         "--output-dir",
@@ -43,12 +36,7 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx').",
     )
-    # parser.add_argument(
-    #     "--label-dims",
-    #     type=str,
-    #     required=True,
-    #     help="Axis layout of the raw loaded label arrays (e.g. 'zyx' or 'czyx').",
-    # )
+
     parser.add_argument(
         "--normalize",
         choices=["percentile", "min_max", "none"],
@@ -70,12 +58,6 @@ def main() -> None:
     print("First images:", [Path(p).name for p in image_files[:5]])
     # print("First masks: ", [Path(p).name for p in mask_files[:5]])
 
-    # if len(image_files) != len(mask_files):
-    #     print(
-    #         f"WARNING: image count ({len(image_files)}) "
-    #         f"!= mask count ({len(mask_files)}). They should pair 1:1."
-    #     )
-
     # Step 2 -- write each volume to its OWN .ome.zarr (one sample, one frame)
     out_dir = Path(args.output_dir)
     out_dir = out_dir.expanduser().resolve()
@@ -83,14 +65,10 @@ def main() -> None:
     print(f"Output dir: {out_dir}")
 
     image_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
-    # label_chunks = tuple(args.chunk_size)  # (C, Z, Y, X)
 
     for i in range(len(image_files)):
         image, image_meta = load_array(image_files[i])
-        # mask, _ = load_array(mask_files[i])
-        
-        # Homogenize dims to (C, Z, Y, X) and normalize the image
-        # image, mask = preprocess(
+
         image = preprocess_noLabel(
             image_array=image,
             # label_array=mask,
@@ -101,15 +79,12 @@ def main() -> None:
         
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if save_path.exists():
-            shutil.rmtregite(save_path)
-            save_to_zarr_noLabel(
+            shutil.rmtree(save_path)
+        save_to_zarr_noLabel(
             image=image,
-            # label=mask,
             save_path=save_path,
             image_chunks=image_chunks,
-            # label_chunks=label_chunks,
             image_axes="czyx",
-            # label_axes="czyx",
             image_metadata=image_meta,
         )
         print(f"Wrote {save_path.name}  image={image.shape}")
