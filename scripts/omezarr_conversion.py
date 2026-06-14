@@ -132,7 +132,7 @@ def _load_czi(path: Path) -> np.ndarray:
     
 
     #return np.squeeze(CziFile(str(path)).read_image()), CziFile(str(path)).metadata()
-    #return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
+    return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
     
 
 
@@ -156,8 +156,8 @@ def _load_nd2(path: Path) -> np.ndarray:
 def save_to_zarr(
     image,
     label,
-    chunk_size,
     sample_id,
+    chunk_size = (128, 128, 128),
     save_path = "./dataset.zarr",
     axes = "tcxyz",
 ):
@@ -252,13 +252,17 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output dir: {out_dir}")
 
-    for f in image_files:
-        data = load_array(f)
+    #for f in image_files:
+    for i in range(len(image_files)):
+        image = load_array(image_files[i])
+        mask = load_array(mask_files[i])
         out_path = out_dir / f"{Path(f).stem}.ome.zarr"
         if out_path.exists():
             shutil.rmtree(out_path)
-        save_to_zarr(data, str(out_path), axes=args.axes)
-        print(f"Wrote {out_path.name}  shape={data.shape}  dtype={data.dtype}")
+        save_to_zarr(image, mask, sample_id = image_files[i], 
+                     #str(out_path), axes=args.axes, 
+                     )
+        print(f"Wrote {out_path.name}  shape={image.shape}  dtype={mask.dtype}")
 
     print(f"Done. Wrote {len(image_files)} .ome.zarr files to {out_dir}")
 
