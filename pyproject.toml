@@ -13,13 +13,6 @@ classifiers = [
 keywords = []
 license = { text = "BSD 3-Clause License" }
 dynamic = ["version"]
-
-dependencies = [
-    "numpy",
-    "scipy",
-    "scikit-image",
-]
-
 authors = [
   {email = "federico.carrara@fht.org", name = "Federico Carrara"},
   {email = "vvenu@utexas.edu", name = "Vijay Venu"},
@@ -32,3 +25,21 @@ authors = [
   {email = "hoblos.h@wehi.edu.au", name = "Hanadi Hoblos"},
   {email = "eric_chen@g.harvard.edu", name = "Eric Chen"},
 ]
+
+dependencies = [
+    "gunpowder",
+    "ome-zarr",
+    "torch",
+    "torchvision",
+    "tensorboard",
+    "mwatershed",
+    "aicspylibczi",
+    "nd2",
+    "tifffile",
+    "matplotlib",
+    "lxml"
+]
+
+[project.optional-dependencies]
+napari = ["napari"]
+ndv = ["ndv[jup]"]
