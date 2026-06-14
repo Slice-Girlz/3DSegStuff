@@ -10,6 +10,7 @@ def preprocess(
     normalize : Literal['min_max','percentile'] | None = 'percentile'
 ):
     
+
     # Check dtype
     image_array, label_array = check_dtype(
         image_array=image_array,
@@ -19,7 +20,6 @@ def preprocess(
     # Fix dims
     image_array = fix_dims(image_dims, image_array)
     label_array = fix_dims(image_dims, label_array)
-
 
     # Normalize
     if normalize is not None:    
@@ -90,7 +90,7 @@ def check_dtype(
 def fix_dims(image_dims, array):
     expected_dims=("t" , "c", "z", "y", "x")
     temp_dims = image_dims
-    for i in range(len()):
+    for i in range(len(expected_dims)):
         dims=expected_dims[i]
         is_present = (dims in temp_dims)
         if not is_present:
