@@ -247,15 +247,6 @@ def save_to_zarr_noLabel(
         scaler=None,
     )
 
-    # write_labels(
-    #     labels=label,
-    #     group=root,
-    #     name=label_name,  # appears under labels/<label_name>
-    #     axes=label_axes,
-    #     storage_options={"chunks": label_chunks},
-    #     scaler=None,
-    # )
-
     if image_metadata is not None:
         root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
 
@@ -264,4 +255,3 @@ def save_to_zarr_noLabel(
     funlib_metadata = prepare_metadata(image_metadata)
     funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
     root["0"].attrs.update(funlib_metadata)
-    # root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
