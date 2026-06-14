@@ -41,7 +41,8 @@ import numpy as np
 import zarr
 from ome_zarr.io import parse_url
 from ome_zarr.writer import write_image, write_labels
-
+#from aicspylibczi import CziFile
+from czifile import CziFile
 
 # File types this pipeline understands. Add an extension here and a matching
 # branch in load_array() to support a new format.
@@ -93,7 +94,7 @@ def load_array(path: str | Path) -> np.ndarray:
     if ext in (".tif", ".tiff"):
         arr = _load_tiff(path)
     elif ext == ".czi":
-        arr = _load_czi(path)
+        arr , _= _load_czi("/home/S-EC/DL-Janelia-2026/unet_test_playground/conversion_tests/images/20260528_tg_MAmCitrine_mRNAinj_27_16e_30degmount_emb2-01-Airyscan Processing-01.czi")
     elif ext == ".nd2":
         arr = _load_nd2(path)
     else:
@@ -122,15 +123,27 @@ def _load_czi(path: Path) -> np.ndarray:
     (e.g. B, V, C, T, Z, Y, X, 0). We squeeze the singletons so the result is a
     clean array comparable to a tif read (e.g. ZYX or CZYX).
     """
-    try:
-        from aicspylibczi import CziFile
-    except ImportError as e:
-        raise ImportError("Reading .czi needs `aicspylibczi` (pip install aicspylibczi).") from e
+    # try:
+    #     from aicspylibczi import CziFile #
+    # except ImportError as e:
+    #     raise ImportError("Reading .czi needs `aicspylibczi` (pip install aicspylibczi).") from e
     
-
-    #return np.squeeze(CziFile(str(path)).read_image()), CziFile(str(path)).metadata()
-    return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
     
+    with CziFile(path) as czi:
+        img = czi.asarray()
+        image_data = img[..., -5:]
+        print ("shape ", image_data.shape)
+        return (czi.asarray()[..., -5:], czi.metadata())
+    #return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
+    #return np.squeeze(CziFile.imread(str(path))), CziFile(str(path)).metadata()
+    # with CziFile(str(path)) as img:
+    #     print("inside CziFile loop")
+    #     xarr = img.scenes[0].data()
+    #     meta = img.scenes[0].metadata()
+    #     print (xarr)
+    #     print(meta)
+    #     return xarr, meta
+        
 
 
 def _load_nd2(path: Path) -> np.ndarray:
@@ -139,7 +152,7 @@ def _load_nd2(path: Path) -> np.ndarray:
         import nd2
     except ImportError as e:
         raise ImportError("Reading .nd2 needs `nd2` (pip install nd2).") from e
-    r#eturn nd2.imread(str(path))
+    #return nd2.imread(str(path))
     return nd2.ND2File(str(path)).imread(), nd2.ND2File(str(path)).metadata()
 
 ##TODO - META DATA LOADING.
@@ -253,7 +266,7 @@ def main() -> None:
     for i in range(len(image_files)):
         image = load_array(image_files[i])
         mask = load_array(mask_files[i])
-        out_path = out_dir / f"{Path(f).stem}.ome.zarr"
+        out_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
         if out_path.exists():
             shutil.rmtree(out_path)
         save_to_zarr(image, mask, sample_id = image_files[i], 
