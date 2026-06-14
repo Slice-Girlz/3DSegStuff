@@ -53,6 +53,13 @@ def parse_args() -> argparse.Namespace:
         default="percentile",
         help="Image intensity normalization. Default: percentile.",
     )
+
+    parser.add_argument(
+        "--make_sparse_mask",
+        type=bool,
+        required=False,
+        help="Create a boolean mask from sparse labels. Save an extra folder named 'sparse_masks' in .ome.zarr "
+    )
     return parser.parse_args()
 
 
@@ -97,6 +104,7 @@ def main() -> None:
         )
         
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
+
         if save_path.exists():
             shutil.rmtree(save_path)
         save_to_zarr(
@@ -108,6 +116,7 @@ def main() -> None:
             image_axes="czyx",
             label_axes="czyx",
             image_metadata=image_meta,
+            make_sparse_mask = args.make_sparse_mask
         )
         print(f"Wrote {save_path.name}  image={image.shape}  label={mask.shape}  dtype={mask.dtype}")
 
