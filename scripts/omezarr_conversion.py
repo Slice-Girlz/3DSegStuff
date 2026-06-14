@@ -42,6 +42,12 @@ def parse_args() -> argparse.Namespace:
         help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx').",
     )
     parser.add_argument(
+        "--label-dims",
+        type=str,
+        required=True,
+        help="Axis layout of the raw loaded label arrays (e.g. 'zyx' or 'czyx').",
+    )
+    parser.add_argument(
         "--normalize",
         choices=["percentile", "min_max", "none"],
         default="percentile",
@@ -86,6 +92,7 @@ def main() -> None:
             image_array=image,
             label_array=mask,
             image_dims=args.input_dims,
+            label_dims=args.label_dims,
             normalize="percentile",
         )
         

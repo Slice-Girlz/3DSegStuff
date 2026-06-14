@@ -5,7 +5,8 @@ from typing import Literal
 def preprocess(
     image_array: np.ndarray, 
     label_array: np.ndarray, 
-    image_dims, 
+    image_dims: str = "czyx",
+    label_dims: str = "czyx",
     normalize : Literal['min_max','percentile'] | None = 'percentile'
 ):
     # Check dtype
@@ -13,7 +14,7 @@ def preprocess(
 
     # Fix dims
     image_array = fix_dims(image_array, input_dims=image_dims)
-    label_array = fix_dims(label_array, input_dims=image_dims)
+    label_array = fix_dims(label_array, input_dims=label_dims)
 
     # Normalize
     if normalize is not None:    
