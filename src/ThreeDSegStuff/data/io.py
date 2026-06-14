@@ -226,13 +226,9 @@ def save_to_zarr(
 
 def save_to_zarr_noLabel(
     image: np.ndarray, # (C, Z, Y, X)
-    # label: np.ndarray, # (C, Z, Y, X)
     save_path="./volume.ome.zarr", # path to ONE .ome.zarr (one sample, one frame)
     image_chunks=(1, 64, 64, 64), # C, Z, Y, X
-    # label_chunks=(1, 64, 64, 64), # C, Z, Y, X
     image_axes="czyx",
-    # label_axes="czyx",
-    # label_name="labels",
     image_metadata=None,
 ):
     """
