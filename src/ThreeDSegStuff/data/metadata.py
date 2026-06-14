@@ -66,24 +66,19 @@ def _derive_funlib_from_metadata(native_metadata) -> dict:
 
 def _nd2_voxel_size_um(meta):
     """Nikon .nd2 metadata: per-axis calibration in microns, ordered (x, y, z)."""
-    try:
-        x, y, z = (float(v) for v in meta.channels[0].volume.axesCalibration)
-        return (x, y, z)
-    except Exception:
-        return None
+    x, y, z = (float(v) for v in meta.channels[0].volume.axesCalibration)
+    return (x, y, z)
 
 
 def _czi_voxel_size_um(meta):
     """Zeiss .czi metadata XML: <Distance Id="X|Y|Z"><Value> in metres."""
-    try:
-        from lxml import etree
+    from lxml import etree
 
-        if not isinstance(meta, etree._Element):
-            return None
-        microns = []
-        for axis in ("X", "Y", "Z"):
-            metres = meta.findtext(f".//Distance[@Id='{axis}']/Value")
-            microns.append(float(metres) * 1e6)  # metres -> microns
-        return tuple(microns)
-    except Exception:
+    if not isinstance(meta, etree._Element):
         return None
+    microns = []
+    for axis in ("X", "Y", "Z"):
+        metres = meta.findtext(f".//Distance[@Id='{axis}']/Value")
+        microns.append(float(metres) * 1e6)  # metres -> microns
+    return tuple(microns)
+
