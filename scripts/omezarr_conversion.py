@@ -33,10 +33,7 @@ Install (per format you actually use)
     python -m pip install nd2                             # for .nd2
 """
 
-from __future__ import annotations
-
 import argparse
-import re
 import shutil
 from pathlib import Path
 
