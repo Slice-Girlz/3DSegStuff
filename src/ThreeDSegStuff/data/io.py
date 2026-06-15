@@ -266,13 +266,9 @@ def save_to_zarr_noLabel(
     if image_metadata is not None:
         root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
 
-<<<<<<< HEAD
     # Stamp funlib-style metadata onto the image and label arrays (level 0). The
     # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
     funlib_metadata = prepare_metadata(image_metadata)
     funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
     root["0"].attrs.update(funlib_metadata)
     # root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
-=======
-
->>>>>>> 7b4b6be10b557ea2ee5b58a5604a6879c3fcf575
