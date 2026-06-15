@@ -1,23 +1,18 @@
+from torch import Tensor, nn, sum
 import torch
 
-def loss(
-        gt_affs,
-        pred_affs,
-        affs_weights, # from mask
-):
-    
-    loss_weighted = MSE_loss(gt_affs, pred_affs, affs_weights)
+class weighted_MSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    return loss_weighted
+    def forward(self, pred_affs: Tensor, gt_affs: Tensor, affs_weights) -> Tensor:
+        """
+        Runs the forward pass.
+        """
 
-def MSE_loss(
-        gt_affs,
-        pred_affs,
-        affs_weights,
-): 
+        pixelwise_loss = ((pred_affs - gt_affs)**2)*affs_weights
+        count_affinities = torch.count_nonzero(affs_weights)+1e-8
 
-    pixelwise_loss = affs_weights * (pred_affs - gt_affs)**2
-    count_affs = torch.count_nonzero(affs_weights)
-    loss = pixelwise_loss.sum() / (count_affs+1e-8)
+        return sum(pixelwise_loss)/count_affinities
 
-    return loss
+
