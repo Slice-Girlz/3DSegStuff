@@ -135,6 +135,7 @@ def check_dshape(
             f"label_array shape: {label_array.shape}"
         )
 
+<<<<<<< HEAD
 
 #     if image_dtype not in allowed_image_dtypes:
 #         raise TypeError(
@@ -152,6 +153,8 @@ def check_dshape(
 #         )
 
 
+=======
+>>>>>>> 7b4b6be10b557ea2ee5b58a5604a6879c3fcf575
 def fix_dims(array, input_dims):
     """
     Reorder (and pad) the axes of `array` so it follows the standard ``czyx`` layout.
