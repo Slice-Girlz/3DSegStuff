@@ -128,12 +128,12 @@ def check_dshape(
     label_array = np.asarray(label_array)
 
     # Check same spatial shape (Z, Y, X); channel count may differ
-    if image_array.shape[-3:] != label_array.shape[-3:]:
-        raise ValueError(
-            f"image_array and label_array must have the same Z, Y, X shape.\n"
-            f"image_array shape: {image_array.shape}\n"
-            f"label_array shape: {label_array.shape}"
-        )
+    # if image_array.shape[-3:] != label_array.shape[-3:]:
+    #     raise ValueError(
+    #         f"image_array and label_array must have the same Z, Y, X shape.\n"
+    #         f"image_array shape: {image_array.shape}\n"
+    #         f"label_array shape: {label_array.shape}"
+    #     )
 
 def fix_dims(array, input_dims):
     """

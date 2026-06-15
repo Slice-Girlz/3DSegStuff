@@ -60,7 +60,9 @@ def train(
     # model.train()
 
     samples = [
-      {"raw": os.path.join(f, "0"), "labels": os.path.join(f, "labels/labels/0")} # add training masks
+      {"raw": os.path.join(f, "0"), 
+       "labels": os.path.join(f, "labels/labels/0"),
+       "unlabelled": os.path.join(f, "labels/sparse_label_masks/0")} 
       for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
       ]
     
