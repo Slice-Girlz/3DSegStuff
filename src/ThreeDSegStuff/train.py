@@ -12,8 +12,6 @@ import logging
 import glob
 import torch
 
-from loss import MSELoss ### Need to confirm the name of the loss function with Hanadi
-
 logging.basicConfig(level=logging.INFO)
 
 def train(
@@ -62,10 +60,8 @@ def train(
 
     # Model training setup
     model.train()
-    loss = MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.5e-4)
+    optimizer = optimizer
     batch_size = batch_size
-
     
     if sparse_mask==True:
       samples = [
@@ -97,8 +93,8 @@ def train(
     request.add(raw, input_size)
     request.add(labels, output_size)
     request.add(gt_affs, output_size)
-    #request.add(affs_weights, output_size)
-    #request.add(pred_affs, output_size)
+    request.add(affs_weights, output_size)
+    request.add(pred_affs, output_size)
     
     # Get samples and declare data source
     source = tuple(
@@ -153,26 +149,29 @@ def train(
     affinities = gp.AddAffinities(
         affinity_neighborhood=neighborhood,
         labels=labels,
-        #unlabelled,          # Training mask, for sparse data
-        affinities_mask=gt_affs_mask,
+        unlabelled=unlabelled,          # Training mask, for sparse data
+        affinities_mask=gt_affs_mask,   # Training mask but one per channel of the affinities
         affinities=gt_affs,   # New array key
         dtype='float32'
     )
 
-    balance_labels = gp.BalanceLabels(labels=labels, scales=affs_weights, mask=gt_affs_mask)
+    # Affinities weights are computed here, after masking labels with training mask
+    balance_labels = gp.BalanceLabels(labels=labels, scales=affs_weights, mask=gt_affs_mask)  
 
     train = gp.torch.Train(
        model,
        loss,
        optimizer,
        inputs={
-          
+          0: raw
        },
        outputs={
-          
+          0: pred_affs
        },
        loss_inputs={
-          
+          0: pred_affs,
+          1: gt_affs,
+          2: affs_weights
        },
        save_every=save_checkpoints_every,
        device='cuda'

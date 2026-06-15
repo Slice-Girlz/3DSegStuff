@@ -1,31 +1,17 @@
 from ThreeDSegStuff.train import train
-from ThreeDSegStuff.loss import loss
+from ThreeDSegStuff.loss import weighted_MSEloss
 from ThreeDSegStuff.unet import UNet
-
-
+import torch.optim
+import torch
 import os
 import json
 
-loss  = ...
-optimizer = ...
-
-
-
-#TO DO: 
-
-#read in parameters from a config file. 
-
-### replace the following 
-# load model parameters
+# Read in parameters from a config file. 
+# Load model parameters
 setup_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))# I copied this line from Vijay's script, idk how it works, will check alter. 
 
-print(str(setup_dir))
-
-
-
-with open(os.path.join(setup_dir, "net_config.json")) as f:
+with open(os.path.join(setup_dir, "config_files/config_unet.json")) as f:
     unet_config = json.load(f)
-
 
 depth = unet_config["depth"]
 in_channels = unet_config["in_channels"]
@@ -38,15 +24,8 @@ padding = unet_config["padding"]
 upsample_mode = unet_config["upsample_mode"]
 ndim = unet_config["ndim"]
 
-#these parameters were more elaborate in Vijay's script
 kernel_size = unet_config["kernel_size"]
 downsample_factor = unet_config["downsample_factor"]
-# they were split into kernel size up and down, 
-# and also written as 
-# downsample_factors = eval(
-#     repr(net_config["downsample_factors"]).replace("[", "(").replace("]", ")")
-# )
-
 
 #initialize the Unet with the correct parameters, from the config file. 
 model = UNet(
@@ -65,12 +44,13 @@ model = UNet(
     downsample_factor = downsample_factor
 )
 
-
+loss_fct = weighted_MSEloss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 train(
     model = model, 
-    # loss, 
-    # optimizer,
+    loss = loss_fct, 
+    optimizer = optimizer,
     input_dir = '/mnt/efs/dl_jrc/student_data/S-MS/annotations_omezarr/',
     output_dir = '.',
     n_training_steps = 10,
@@ -83,3 +63,4 @@ train(
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
     save_snapshots_every = 1, 
     sparse_mask = False)
+
