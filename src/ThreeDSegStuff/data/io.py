@@ -154,6 +154,7 @@ def save_to_zarr(
     label_axes="czyx",
     label_name="labels",
     image_metadata=None,
+    make_sparse_mask=False
 ):
     """
     Write a single volume to its own OME-Zarr store at the store root.
@@ -196,6 +197,77 @@ def save_to_zarr(
         storage_options={"chunks": label_chunks},
         scaler=None,
     )
+    
+    if image_metadata is not None:
+        root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
+
+    if make_sparse_mask is True:
+
+        sparse_mask = (label>0).astype(np.uint8) # return a boolean numpy array
+
+        write_labels(
+            labels=sparse_mask,
+            group=root,
+            name='sparse_label_masks',  # appears under labels/'sparse_label_masks'
+            axes=label_axes,
+            storage_options={"chunks": label_chunks},
+            scaler=None,
+        )
+
+
+    # Stamp funlib-style metadata onto the image and label arrays (level 0). The
+    # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
+    funlib_metadata = prepare_metadata(image_metadata)
+    funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
+    root["0"].attrs.update(funlib_metadata)
+    root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
+    if make_sparse_mask:
+        root["labels/sparse_label_masks/0"].attrs.update(funlib_metadata)
+
+
+
+
+# === No label ===
+
+def save_to_zarr_noLabel(
+    image: np.ndarray, # (C, Z, Y, X)
+    save_path="./volume.ome.zarr", # path to ONE .ome.zarr (one sample, one frame)
+    image_chunks=(1, 64, 64, 64), # C, Z, Y, X
+    image_axes="czyx",
+    image_metadata=None,
+):
+    """
+    Write a single volume to its own OME-Zarr store at the store root.
+
+    Each .ome.zarr holds exactly one sample at one frame: the image lives at the
+    root as a (C, Z, Y, X) multiscale, and the label lives under
+    labels/<label_name> as a (C, Z, Y, X) multiscale. Reader-native metadata,
+    when provided, is stored on the root group attrs (JSON-coerced).
+
+    funlib.persistence-style spatial metadata (voxel_size, offset, units, ...) is
+    derived from ``image_metadata`` and stamped onto the image and label arrays so
+    the store opens directly in funlib.persistence / funlib.show.neuroglancer /
+    gunpowder. See :mod:`ThreeDSegStuff.data.metadata`.
+    """
+    if image.ndim != 4:
+        raise ValueError(f"Expected image with 4 dims (C, Z, Y, X), got shape {image.shape}")
+    # if label.ndim != 4:
+    #     raise ValueError(f"Expected label with 4 dims (C, Z, Y, X), got shape {label.shape}")
+    if len(image_chunks) != 4:
+        raise ValueError("Expected image_chunks must have 4 items (C, Z, Y, X)")
+    # if len(label_chunks) != 4:
+    #     raise ValueError("Expected label_chunks must have 4 items (C, Z, Y, X)")
+
+    store = parse_url(save_path, mode="w").store
+    root = zarr.group(store=store)
+
+    write_image(
+        image=image,
+        group=root,
+        axes=image_axes,
+        storage_options={"chunks": image_chunks},
+        scaler=None,
+    )
 
     if image_metadata is not None:
         root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
@@ -205,4 +277,3 @@ def save_to_zarr(
     funlib_metadata = prepare_metadata(image_metadata)
     funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
     root["0"].attrs.update(funlib_metadata)
-    root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
