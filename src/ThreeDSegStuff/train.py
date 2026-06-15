@@ -10,13 +10,16 @@ from funlib.persistence import open_ds, Array
 import os
 import logging 
 import glob
+import torch
+
+from loss import MSELoss ### Need to confirm the name of the loss function with Hanadi
 
 logging.basicConfig(level=logging.INFO)
 
 def train(
-    # model, 
-    # loss, 
-    # optimizer,
+    model,
+    loss, 
+    optimizer,
     input_dir,
     output_dir,
     n_training_steps = 10,
@@ -28,7 +31,8 @@ def train(
     var_noise = 10e-5,
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
     save_snapshots_every = 1,
-    save_checkpoints_every = 5
+    save_checkpoints_every = 5,
+    sparse_mask = False
 ):
     """
 
@@ -57,12 +61,28 @@ def train(
     pred_affs = gp.ArrayKey("PRED_AFFS")
 
     # Model training setup
-    # model.train()
+    model.train()
+    loss = MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.5e-4)
+    batch_size = batch_size
 
-    samples = [
-      {"raw": os.path.join(f, "0"), "labels": os.path.join(f, "labels/labels/0")} # add training masks
-      for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
-      ]
+    
+    if sparse_mask==True:
+      samples = [
+        {"raw": os.path.join(f, "0"), 
+        "labels": os.path.join(f, "labels/labels/0"),
+        "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
+        } 
+        for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
+        ]  
+    else:
+      samples = [
+        {"raw": os.path.join(f, "0"), 
+        "labels": os.path.join(f, "labels/labels/0")
+        } 
+        for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
+        ]
+     
     
     # assuming same vs
     voxel_size = open_ds(samples[0]["raw"]).voxel_size # World coordinates: voxel coordinate * voxel_size = physical unit
@@ -81,22 +101,36 @@ def train(
     #request.add(pred_affs, output_size)
     
     # Get samples and declare data source
-    source = tuple((
-        gp.ArraySource(raw, open_ds(sample["raw"]), True),
-        gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False) # Labels from converter have channel dim? To check
-        # gp.ArraySource(unlabelled, open_ds(sample["unlabelled"]), False),
-      )
-      + gp.MergeProvider()            # Merge together raw and labels for gp to understand they are a pair
-      + gp.Normalize(raw)             # Convert to floats (should already be floats after converting to ome-zarr)
-      + gp.Pad(raw, output_size)      # Set this appropriately
-      + gp.Pad(labels, output_size)   # Set this appropriately
-      + gp.RandomLocation()           # Pick a random patch in that source
-      for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
+    source = tuple(
+       (
+          (
+             gp.ArraySource(raw, open_ds(sample["raw"]), True),
+             gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False), # Labels from converter have channel dim? To check
+             gp.ArraySource(unlabelled, Array(open_ds(sample["unlabelled"])[0], voxel_size=voxel_size), False)
+          )
+          + gp.MergeProvider() 
+          if "unlabelled" in sample and sample["unlabelled"] is not None
+
+          else(
+             gp.ArraySource(raw, open_ds(sample["raw"]), True),
+             gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False), # Labels from converter have channel dim? To check
+             )
+          + gp.MergeProvider() # Merge together raw and labels for gp to understand they are a pair
+       )
+       + gp.Normalize(raw)             # Convert to floats (should already be floats after converting to ome-zarr)
+       + gp.Pad(raw, output_size)      # Set this appropriately
+       + gp.Pad(labels, output_size)   # Set this appropriately
+       + gp.RandomLocation()           # Pick a random patch in that source
+       + gp.Reject(mask=unlabelled, min_masked=0.05) ### do we need this?
+       for sample in samples) 
+    + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
+
 
     # Prepare augmentations: tune these to make them likely microscope images for your case!
     simple_augment = gp.SimpleAugment(
       transpose_only = (1, 2)   # Only transpose XY
     )
+    
     elastic_augment = gp.DeformAugment(
       control_point_spacing = (10 * voxel_size[-2], 10 * voxel_size[-1]),
       jitter_sigma = (1.5 * voxel_size[-2], 1.5 * voxel_size[-1]),
