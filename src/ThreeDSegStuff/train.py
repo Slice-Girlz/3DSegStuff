@@ -21,7 +21,6 @@ def train(
     input_dir,
     output_dir,
     n_training_steps = 10,
-    channel = 1,
     input_shape = [1, 16, 128, 128],
     output_shape = [1, 14, 124, 124],
     batch_size = 1, 
@@ -95,6 +94,7 @@ def train(
     request.add(gt_affs, output_size)
     request.add(affs_weights, output_size)
     request.add(pred_affs, output_size)
+    request.add(unlabelled, output_size)
     
     # Get samples and declare data source
     source = tuple(
@@ -109,6 +109,7 @@ def train(
        + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
        + gp.Pad(raw, output_size)         # Set this appropriately
        + gp.Pad(labels, output_size)      # Set this appropriately
+       + gp.Pad(unlabelled, output_size)      # Set this appropriately
        + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
        for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
 
@@ -133,7 +134,7 @@ def train(
     poisson_noise_augment = gp.NoiseAugment(raw, mode='poisson', p=prob_augment, clip=True)
     #smooth_augment = SmoothAugment(raw, p=prob_augment)
 
-    grow_boundary = gp.GrowBoundary(labels, mask=...)
+    grow_boundary = gp.GrowBoundary(labels, mask=unlabelled)
 
     # Prepare affinities
     affinities = gp.AddAffinities(
@@ -146,7 +147,7 @@ def train(
     )
 
     # Affinities weights are computed here, after masking labels with training mask
-    balance_labels = gp.BalanceLabels(labels=labels, scales=affs_weights, mask=gt_affs_mask)  
+    balance_labels = gp.BalanceLabels(labels=gt_affs, scales=affs_weights, mask=gt_affs_mask)  
 
     train = gp.torch.Train(
        model,
@@ -175,8 +176,10 @@ def train(
         dataset_names={         # Specify which arrays to save
             raw: "raw",
             gt_affs: "gt_affs",
-            #pred_affs
-            labels: "labels"
+            pred_affs: "pred_affs",
+            affs_weights: "affs_weights",
+            labels: "labels",
+            unlabelled: "unlabelled"
         },
         output_filename="batch_{iteration}.zarr",
         output_dir=os.path.join(output_dir, "snapshots"),

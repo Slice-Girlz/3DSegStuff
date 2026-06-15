@@ -205,14 +205,17 @@ def save_to_zarr(
 
         sparse_mask = (label>0).astype(np.uint8) # return a boolean numpy array
 
-        write_labels(
-            labels=sparse_mask,
-            group=root,
-            name='sparse_label_masks',  # appears under labels/'sparse_label_masks'
-            axes=label_axes,
-            storage_options={"chunks": label_chunks},
-            scaler=None,
-        )
+    else: 
+        sparse_mask = np.ones_like(label).astype(np.uint8)
+
+    write_labels(
+        labels=sparse_mask,
+        group=root,
+        name='sparse_label_masks',  # appears under labels/'sparse_label_masks'
+        axes=label_axes,
+        storage_options={"chunks": label_chunks},
+        scaler=None,
+    )
 
 
     # Stamp funlib-style metadata onto the image and label arrays (level 0). The
