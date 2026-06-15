@@ -1,0 +1,30 @@
+{
+    "in_channels": 2,
+    "num_fmaps": 12,
+    "fmap_inc_factor": 5,
+    "downsample_factors": [[1, 2, 2], [1, 2, 2], [1, 2, 2]],
+    "kernel_size_down": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]],
+    "kernel_size_up": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]],
+    "input_shape": [2, 16, 128, 128],
+    "output_shape": [3, 8, 104, 104],
+    "constant_upsample": 1,
+    "depth": 4,
+    "padding": "same",
+    "two_or_threeD": 3,
+    "inputs": {
+        "raw": {"dims": 1}
+    },
+    "outputs": {
+        "3d_affs": {
+            "dtype": "uint8",
+            "dims": 6
+        }
+    }
+}
