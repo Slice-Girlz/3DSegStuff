@@ -112,7 +112,7 @@ def main() -> None:
             # label_axes="czyx",
             image_metadata=image_meta,
         )
-        print(f"Wrote {save_path.name}  image={image.shape}  label={mask.shape}  dtype={mask.dtype}")
+        print(f"Wrote {save_path.name}  image={image.shape}")
 
     print(f"Done. Wrote {len(image_files)} .ome.zarr files to {out_dir}")
 
