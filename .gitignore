@@ -1,3 +1,9 @@
+.zarray
+.zattrs
+model_checkpoint_*
+snapshots/
+test.zarr/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
