@@ -105,22 +105,12 @@ def train(
              gp.ArraySource(unlabelled, Array(open_ds(sample["unlabelled"])[0], voxel_size=voxel_size), False)
           )
           + gp.MergeProvider() 
-          if "unlabelled" in sample and sample["unlabelled"] is not None
-
-          else(
-             gp.ArraySource(raw, open_ds(sample["raw"]), True),
-             gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False), # Labels from converter have channel dim? To check
-             )
-          + gp.MergeProvider() # Merge together raw and labels for gp to understand they are a pair
        )
-       + gp.Normalize(raw)             # Convert to floats (should already be floats after converting to ome-zarr)
-       + gp.Pad(raw, output_size)      # Set this appropriately
-       + gp.Pad(labels, output_size)   # Set this appropriately
-       + gp.RandomLocation()           # Pick a random patch in that source
-       + gp.Reject(mask=unlabelled, min_masked=0.05) ### do we need this?
-       for sample in samples) 
-    + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
-
+       + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
+       + gp.Pad(raw, output_size)         # Set this appropriately
+       + gp.Pad(labels, output_size)      # Set this appropriately
+       + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
+       for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
 
     # Prepare augmentations: tune these to make them likely microscope images for your case!
     simple_augment = gp.SimpleAugment(

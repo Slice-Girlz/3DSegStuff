@@ -1,5 +1,5 @@
 from ThreeDSegStuff.train import train
-from ThreeDSegStuff.loss import weighted_MSEloss
+from ThreeDSegStuff.loss import weighted_MSELoss
 from ThreeDSegStuff.unet import UNet
 import torch.optim
 import torch
@@ -44,7 +44,7 @@ model = UNet(
     downsample_factor = downsample_factor
 )
 
-loss_fct = weighted_MSEloss()
+loss_fct = weighted_MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 train(
