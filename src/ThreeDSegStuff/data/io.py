@@ -214,6 +214,7 @@ def save_to_zarr(
             scaler=None,
         )
 
+
     # Stamp funlib-style metadata onto the image and label arrays (level 0). The
     # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
     funlib_metadata = prepare_metadata(image_metadata)
@@ -222,6 +223,11 @@ def save_to_zarr(
     root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
     if make_sparse_mask:
         root["labels/sparse_label_masks/0"].attrs.update(funlib_metadata)
+
+
+
+
+# === No label ===
 
 def save_to_zarr_noLabel(
     image: np.ndarray, # (C, Z, Y, X)
@@ -266,4 +272,8 @@ def save_to_zarr_noLabel(
     if image_metadata is not None:
         root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
 
-
+    # Stamp funlib-style metadata onto the image and label arrays (level 0). The
+    # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
+    funlib_metadata = prepare_metadata(image_metadata)
+    funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
+    root["0"].attrs.update(funlib_metadata)

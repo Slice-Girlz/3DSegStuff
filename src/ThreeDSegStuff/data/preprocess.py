@@ -125,8 +125,7 @@ def check_dshape(
     label_array: np.ndarray,
 ):
     image_array = np.asarray(image_array)
-    label_array = np.asarray(label_array).astype(np.uint32)
-    
+    label_array = np.asarray(label_array)
 
     # Check same shape
     if image_array.shape != label_array.shape:
