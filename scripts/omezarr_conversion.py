@@ -53,13 +53,6 @@ def parse_args() -> argparse.Namespace:
         default="percentile",
         help="Image intensity normalization. Default: percentile.",
     )
-
-    parser.add_argument(
-        "--make_sparse_mask",
-        type=bool,
-        required=False,
-        help="Create a boolean mask from sparse labels. Save an extra folder named 'sparse_masks' in .ome.zarr "
-    )
     return parser.parse_args()
 
 
