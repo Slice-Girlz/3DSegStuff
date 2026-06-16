@@ -69,9 +69,5 @@ train(
     log_wandb = True,
     wandb_project = "3DSegStuff",
     wandb_run_name = None,
-    avg_loss_every = 100,
-    n_val_samples = 5,          # hold out the last 5 of 25 volumes for validation
-    validate_every = 1000,       # run validation every 1000 training steps
-    n_validation_batches = 4,   # average val loss over 4 batches
-    unet_config = unet_config
-) # contents of the config dict, for saving to WanDB
+    log_every = 1,
+    unet_config = unet_config) # contents of the config dict, for saving to WanDB
