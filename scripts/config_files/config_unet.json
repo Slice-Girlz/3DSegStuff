@@ -1,9 +1,9 @@
 {
-    "depth": 4,
+    "depth": 2,
     "in_channels": 2,
     "out_channels": 3,
     "final_activation": "torch.nn.Sigmoid()",
-    "num_fmaps": 12,
+    "num_fmaps": 24,
     "fmap_inc_factor": 5,
     "downsample_factor": 2,
     "kernel_size": 3,
