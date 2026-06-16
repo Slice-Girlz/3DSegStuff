@@ -1,5 +1,5 @@
 from ThreeDSegStuff.predict import predict
-from ThreeDSegStuff.unet_new import UNet ### Place holder for loading the new unet
+from ThreeDSegStuff.unet import UNet ### Place holder for loading the new unet
 import torch
 import os
 import json
@@ -43,13 +43,13 @@ model = UNet(
     downsample_factor = downsample_factor
 )
 
-
 predict(
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-MS/123.ome.zarr/0',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-MS/model_pred/',
-    config_path = config_path,
-    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/2026-06-16_14-14-09/model_checkpoint_9900',
+    model,
+    input_dir = '/mnt/efs/dl_jrc/student_data/S-YC/data_train_omezarr/260519_fish1_1zstack.ome.zarr/0',
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-YC/model_pred/260519_fish1_1zstack.ome.zarr/pred_affs',
+    config_file_path = '/home/S-YC/3DSegStuff/scripts/config_files/config_unet.json',
+    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/2026-06-16_20-34-18/model_checkpoint_100',
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], #should be same neighborhood as train
-    input_shape = [1, 16, 128, 128], # should be same input_shape as train
-    output_shape = [1, 14, 124, 124] # should be same output_shape as train
+    input_shape = (1, 16, 64, 64), # should be same input_shape as train
+    output_shape = (1, 16, 64, 64) # should be same output_shape as train
     )

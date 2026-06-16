@@ -7,7 +7,6 @@
 import gunpowder as gp
 from funlib.geometry import Roi, Coordinate
 from funlib.persistence import open_ds, Array, prepare_ds
-#from smooth_augment import SmoothAugment
 from ThreeDSegStuff.invert import InvertIntensities
 import os
 import logging 
@@ -18,16 +17,18 @@ import torch
 import json
 
 
-from ThreeDSegStuff.unet_new import UNet ### Place holder for loading the new unet
+from ThreeDSegStuff.unet import UNet ### Place holder for loading the new unet
 
 def predict(
+    model,
     input_dir,
     output_dir,
-    config_path,
+    config_file_path,
     checkpoint_file_path,
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
     input_shape = [1, 16, 128, 128],
-    output_shape = [1, 14, 124, 124]):
+    output_shape = [1, 14, 124, 124]
+    ):
 
     """
 
@@ -41,9 +42,9 @@ def predict(
 
 
     # === load net config ===
-    with open(os.path.join(config_path, "net_config.json")) as f:
+    with open(os.path.join(config_file_path)) as f:
         logging.info(
-            "Reading setup config from %s" % os.path.join(config_path, "config_unet.json")
+            "Reading setup config from %s" % os.path.join(config_file_path)
         )
         net_config = json.load(f)
 
@@ -52,12 +53,9 @@ def predict(
     checkpoint_file_path = checkpoint_file_path if os.path.exists(checkpoint_file_path) else f"{checkpoint_file_path}.ckpt"
     if not os.path.exists(checkpoint_file_path):
         raise FileNotFoundError(f"Neither {checkpoint_file_path} nor {checkpoint_file_path}.ckpt were found.")
-    
 
     # === Model setup ===
-    model = UNet()
     model.eval()
-
 
     # === Declare array keys ===
     raw = gp.ArrayKey("RAW")
@@ -74,7 +72,7 @@ def predict(
     # Preparing for output array -> makes an empty zarr with desired shape
     output_arr = prepare_ds(
        output_dir,
-       shape=(len(neighborhood), *input_arr.shape[1:]) #affinity has 3 channels
+       shape=(len(neighborhood), *input_arr.shape[1:]), #affinity has 3 channels
        voxel_size=input_arr.voxel_size, 
        offset=input_arr.offset,
        axis_names=input_arr.axis_names,
@@ -108,8 +106,14 @@ def predict(
     # Prepare batch 
     stack = gp.Stack(1)
 
-    predict = gp.torch.Predict(model, raw, pred_affs, checkpoint=checkpoint_file_path ) ####
+    predict = gp.torch.Predict(model, 
+                               inputs = {0 : raw}, 
+                               outputs = {0: pred_affs}, 
+                               checkpoint=checkpoint_file_path,
+                               device='cuda' 
+                               ) 
 
+    squeeze = gp.Squeeze([pred_affs])
     zarr_write = gp.ZarrWrite(
        {pred_affs : output_dir.split(".zarr")[-1]},
        store=output_dir.split(".zarr")[0] + ".zarr",
@@ -124,6 +128,7 @@ def predict(
         source + 
         stack +
         predict +
+        squeeze +
         zarr_write + 
         scan)
 

@@ -46,24 +46,24 @@ model = UNet(
 )
 
 loss_fct = weighted_MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 train(
     model = model, 
     loss = loss_fct, 
     optimizer = optimizer,
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-MS/annotations_omezarr/train_val/',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-MS/model_outputs/',
+    input_dir = '/mnt/efs/dl_jrc/student_data/S-YC/data_train_omezarr/',
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/',
     config_path = config_path,
-    n_training_steps = 10000, 
-    input_shape = [1, 16, 64, 64],
-    output_shape = [1, 16, 64, 64],
+    n_training_steps = 100, 
+    input_shape = [1, 16, 64, 64],# -> 12,60,60 => 6,30,30 -> 2,26,26 =(up)=> 4,52,52 -> 0,48,48
+    output_shape = [1, 16, 64, 64], #UNet depth=2 
     batch_size = 1,
     prob_augment = 0.3, 
     var_noise = 10e-5,
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-    save_snapshots_every = 1000,
-    save_checkpoints_every = 1000,
+    save_snapshots_every = 100,
+    save_checkpoints_every = 100,
     sparse_mask = True,
     rotate_aug = False,
     log_wandb = True,

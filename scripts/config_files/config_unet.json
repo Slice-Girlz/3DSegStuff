@@ -1,13 +1,13 @@
 {
     "depth": 2,
-    "in_channels": 2,
+    "in_channels": 1,
     "out_channels": 3,
     "final_activation": "torch.nn.Sigmoid()",
-    "num_fmaps": 24,
+    "num_fmaps": 12,
     "fmap_inc_factor": 5,
     "downsample_factor": 2,
     "kernel_size": 3,
-    "padding": "same",
+    "padding": "valid",
     "upsample_mode": "nearest",
     "ndim": 3
 }
