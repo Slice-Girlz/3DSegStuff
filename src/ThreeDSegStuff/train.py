@@ -8,9 +8,11 @@ from funlib.geometry import Roi, Coordinate
 from funlib.persistence import open_ds, Array
 #from smooth_augment import SmoothAugment
 import os
-import logging 
+import logging
 import glob
+import shutil
 import torch
+import datetime
 
 logging.basicConfig(level=logging.INFO)
 
@@ -20,6 +22,7 @@ def train(
     optimizer,
     input_dir,
     output_dir,
+    config_path = None,
     n_training_steps = 10,
     input_shape = [1, 16, 128, 128],
     output_shape = [1, 14, 124, 124],
@@ -29,13 +32,15 @@ def train(
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
     save_snapshots_every = 1,
     save_checkpoints_every = 5,
-    sparse_mask = False
+    sparse_mask = True,
+    rotate_aug = True
 ):
     """
 
     Inputs:
     - input_dir                   # Directory with omezarr files
-    - output_dir                  # Directory to store outputs in 
+    - output_dir                  # Directory to store outputs in (a timestamped run subfolder is created inside it)
+    - config_path                 # Path to the config file to copy into the run folder for provenance
     - n_training_steps            # how many batches?
     - channel                     # This is the channel that you want to do your segmentations in
     - input_shape                 # Input patch size: figure out correct based on model architecture
@@ -47,6 +52,18 @@ def train(
     - save_snapshots_every        # How often to save snapshots (in training steps)?
     - save_checkpoints_every      # How often to save checkpoints (in training steps)?
     """
+
+    # Create a fresh timestamped run directory so previous runs are never overwritten
+    run_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_dir = os.path.join(output_dir, run_name)
+    os.makedirs(run_dir, exist_ok=True)
+    logging.info(f"Saving outputs to {run_dir}")
+
+    # Copy the config used for this run for reproducibility
+    if config_path is not None:
+        shutil.copy(config_path, os.path.join(run_dir, os.path.basename(config_path)))
+    else:
+        logging.warning("No config_path provided: config will not be copied to the run directory.")
 
     # Declare array keys
     raw = gp.ArrayKey("RAW")
@@ -121,7 +138,7 @@ def train(
     elastic_augment = gp.DeformAugment(
       control_point_spacing = (10 * voxel_size[-2], 10 * voxel_size[-1]),
       jitter_sigma = (1.5 * voxel_size[-2], 1.5 * voxel_size[-1]),
-      rotate = True, 
+      rotate = rotate_aug, 
       spatial_dims = 2            # Only deform XY
     )
     intensity_augment = gp.IntensityAugment(
@@ -165,6 +182,9 @@ def train(
           2: affs_weights
        },
        save_every=save_checkpoints_every,
+       checkpoint_basename=os.path.join(run_dir, "model"),
+       log_dir=os.path.join(run_dir, "tensorboard"),
+       log_every=1,
        device='cuda'
     )
 
@@ -182,7 +202,7 @@ def train(
             unlabelled: "unlabelled"
         },
         output_filename="batch_{iteration}.zarr",
-        output_dir=os.path.join(output_dir, "snapshots"),
+        output_dir=os.path.join(run_dir, "snapshots"),
         every=save_snapshots_every
     )
 
