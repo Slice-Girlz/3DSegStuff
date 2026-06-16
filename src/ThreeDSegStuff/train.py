@@ -8,6 +8,7 @@ from funlib.geometry import Roi, Coordinate
 from funlib.persistence import open_ds, Array
 #from smooth_augment import SmoothAugment
 import os
+import contextlib
 import logging
 import glob
 import shutil
@@ -37,7 +38,9 @@ def train(
    log_wandb = False,
    wandb_project = "3DSegStuff",
    wandb_run_name = None,
-   log_every = 1,
+   avg_loss_every = 100,
+   n_val_samples = 2,
+   validate_every = 500,
    unet_config = None
 ):
    """
@@ -59,7 +62,10 @@ def train(
    - log_wandb                   # Log loss to Weights & Biases?
    - wandb_project               # W&B project name
    - wandb_run_name              # W&B run name (None -> auto-generated)
-   - log_every                   # Log to W&B every N training steps
+   - avg_loss_every              # Log the running-average training loss to W&B every N steps
+   - n_val_samples               # Hold out the last N volumes (sorted by name) for validation (0 -> no validation)
+   - validate_every              # Run validation every N training steps
+   - n_validation_batches        # How many validation batches to average the validation loss over
    - unet_config                 # Dict of UNet architecture params (logged to W&B)
    """
 
@@ -111,23 +117,40 @@ def train(
    optimizer = optimizer
    batch_size = batch_size
    
-   if sparse_mask==True:
-      samples = [
-         {"raw": os.path.join(f, "0"), 
-         "labels": os.path.join(f, "labels/labels/0"),
-         "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
-         } 
-         for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
-      ]  
+   def make_samples(d):
+      # Build the list of {raw, labels[, unlabelled]} dicts for every *ome.zarr in directory d
+      if sparse_mask==True:
+         return [
+            {"raw": os.path.join(f, "0"),
+            "labels": os.path.join(f, "labels/labels/0"),
+            "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
+            }
+            for f in sorted(glob.glob(os.path.join(d, "*ome.zarr")))
+         ]
+      else:
+         return [
+            {"raw": os.path.join(f, "0"),
+            "labels": os.path.join(f, "labels/labels/0")
+            }
+            for f in sorted(glob.glob(os.path.join(d, "*ome.zarr")))
+         ]
+
+   # Hold out the last n_val_samples volumes (sorted by filename) as the validation set.
+   all_samples = make_samples(input_dir)
+   if n_val_samples and n_val_samples > 0:
+      if n_val_samples >= len(all_samples):
+         raise ValueError(
+            f"n_val_samples={n_val_samples} leaves no training data "
+            f"(found {len(all_samples)} volumes in {input_dir})."
+         )
+      samples = all_samples[:-n_val_samples]
+      val_samples = all_samples[-n_val_samples:]
    else:
-      samples = [
-         {"raw": os.path.join(f, "0"), 
-         "labels": os.path.join(f, "labels/labels/0")
-         } 
-         for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
-      ]
-   
-   print(f'Samples: {samples}')
+      samples = all_samples
+      val_samples = []
+
+   print(f'Train samples ({len(samples)}): {samples}')
+   print(f'Validation samples ({len(val_samples)}): {val_samples}')
    # assuming same vs
    voxel_size = open_ds(samples[0]["raw"]).voxel_size # World coordinates: voxel coordinate * voxel_size = physical unit
    # voxel_size should be integers
@@ -145,22 +168,44 @@ def train(
    request.add(pred_affs, output_size)
    request.add(unlabelled, output_size)
    
-   # Get samples and declare data source
-   source = tuple(
-      (
-         (
-            gp.ArraySource(raw, open_ds(sample["raw"]), True),
-            gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False), # Labels from converter have channel dim? To check
-            gp.ArraySource(unlabelled, Array(open_ds(sample["unlabelled"])[0], voxel_size=voxel_size), False)
-         )
-         + gp.MergeProvider() 
-      )
-      + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
-      + gp.Pad(raw, output_size//2)         # Set this appropriately
-      + gp.Pad(labels, output_size//2)      # Set this appropriately
-      + gp.Pad(unlabelled, output_size//2)      # Set this appropriately
-      + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
-      for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
+   # Get samples and declare data source.
+   # NOTE: this is augmentation-free on purpose; augmentations are appended on top
+   # only for the training pipeline, so the same helper can build the validation source.
+   def make_source(sample_list):
+      if sparse_mask:
+         return tuple(
+            (
+               (
+                  gp.ArraySource(raw, open_ds(sample["raw"]), True),
+                  gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False), # Labels from converter have channel dim? To check
+                  gp.ArraySource(unlabelled, Array(open_ds(sample["unlabelled"])[0], voxel_size=voxel_size), False)
+               )
+               + gp.MergeProvider()
+            )
+            + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
+            + gp.Pad(raw, output_size//2)         # Set this appropriately
+            + gp.Pad(labels, output_size//2)      # Set this appropriately
+            + gp.Pad(unlabelled, output_size//2)      # Set this appropriately
+            + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
+            for sample in sample_list
+         ) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
+      else:
+         return tuple(
+            (
+               (
+                  gp.ArraySource(raw, open_ds(sample["raw"]), True),
+                  gp.ArraySource(labels, Array(open_ds(sample["labels"])[0], voxel_size=voxel_size), False), # Labels from converter have channel dim? To check
+               )
+               + gp.MergeProvider()
+            )
+            + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
+            + gp.Pad(raw, output_size//2)         # Set this appropriately
+            + gp.Pad(labels, output_size//2)      # Set this appropriately
+            + gp.RandomLocation()         # Pick a random patch in that source
+            for sample in sample_list
+         ) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
+
+   source = make_source(samples)
 
    # Prepare augmentations: tune these to make them likely microscope images for your case!
    simple_augment = gp.SimpleAugment(
@@ -256,13 +301,84 @@ def train(
 
    ##########################################################
 
-   # Build the pipeline
-   with gp.build(pipeline):
+   # Validation pipeline (optional): same source/target construction as training but
+   # WITHOUT augmentations and WITHOUT the gp.torch.Train node. We run the model
+   # ourselves in eval()/no_grad() and compute the loss manually (gunpowder has no
+   # built-in "validation set" - it's just a second pipeline over held-out data).
+   # NOTE: gunpowder nodes are stateful, so the val pipeline needs its OWN node
+   # instances (the ArrayKeys can be shared since each pipeline holds its own batch).
+   val_pipeline = None
+   val_request = None
+   if len(val_samples) > 0:
+      val_source = make_source(val_samples)
+      val_grow_boundary = gp.GrowBoundary(labels, mask=unlabelled)
+      val_affinities = gp.AddAffinities(
+         affinity_neighborhood=neighborhood,
+         labels=labels,
+         unlabelled=unlabelled,
+         affinities_mask=gt_affs_mask,
+         affinities=gt_affs,
+         dtype='float32'
+      )
+      val_balance_labels = gp.BalanceLabels(labels=gt_affs, scales=affs_weights, mask=gt_affs_mask)
+      val_stack = gp.Stack(1)
+
+      val_pipeline = (
+         val_source +
+         val_grow_boundary +
+         val_affinities +
+         val_balance_labels +
+         val_stack)
+
+      # Same target arrays as training, minus pred_affs (produced manually below)
+      val_request = gp.BatchRequest()
+      val_request.add(raw, input_size)
+      val_request.add(labels, output_size)
+      val_request.add(unlabelled, output_size)
+      val_request.add(gt_affs, output_size)
+      val_request.add(affs_weights, output_size)
+
+   def run_validation():
+      # Average the (weighted MSE) loss over n_validation_batches held-out batches
+      model.eval()
+      val_losses = []
+      with torch.no_grad():
+         for _ in range(len(val_samples)):
+            val_batch = val_pipeline.request_batch(val_request)
+            raw_t = torch.as_tensor(val_batch[raw].data, dtype=torch.float32, device='cuda')
+            gt_t = torch.as_tensor(val_batch[gt_affs].data, dtype=torch.float32, device='cuda')
+            w_t = torch.as_tensor(val_batch[affs_weights].data, dtype=torch.float32, device='cuda')
+            val_losses.append(float(loss(model(raw_t), gt_t, w_t)))
+      model.train()  # restore training mode for the next optimizer steps
+      return sum(val_losses) / len(val_losses)
+
+   ##########################################################
+
+   # Build the pipeline(s). The val pipeline is only entered when validation is enabled.
+   with contextlib.ExitStack() as cm:
+      cm.enter_context(gp.build(pipeline))
+      if val_pipeline is not None:
+         cm.enter_context(gp.build(val_pipeline))
+
+      curr_loss = []
       for step in range(n_training_steps):
          batch = pipeline.request_batch(request)
          # gp.torch.Train attaches the loss and global iteration to the batch
-         if log_wandb and batch.iteration % log_every == 0:
+         curr_loss.append(float(batch.loss))
+         if log_wandb:
+            # per-step loss
             wandb.log({"loss": float(batch.loss)}, step=batch.iteration)
+            if step % avg_loss_every == 0:
+               # log the average loss of the last avg_loss_every steps
+               wandb.log({"avg_loss": sum(curr_loss)/len(curr_loss)}, step=batch.iteration)
+               curr_loss = [] # reset
+
+         # Periodic validation
+         if val_pipeline is not None and step % validate_every == 0:
+            val_loss = run_validation()
+            logging.info(f"[step {batch.iteration}] val_loss = {val_loss:.5f}")
+            if log_wandb:
+               wandb.log({"val_loss": val_loss}, step=batch.iteration)
 
    if log_wandb:
       wandb.finish()
