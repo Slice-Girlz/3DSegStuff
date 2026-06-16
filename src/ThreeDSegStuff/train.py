@@ -33,7 +33,11 @@ def train(
     save_snapshots_every = 1,
     save_checkpoints_every = 5,
     sparse_mask = True,
-    rotate_aug = True
+    rotate_aug = True,
+    log_wandb = False,
+    wandb_project = "3DSegStuff",
+    wandb_run_name = None,
+    log_every = 1,
 ):
     """
 
@@ -51,7 +55,32 @@ def train(
     - neighborhood                # Neighborhoods to compute affinities from 
     - save_snapshots_every        # How often to save snapshots (in training steps)?
     - save_checkpoints_every      # How often to save checkpoints (in training steps)?
+    - log_wandb                   # Log loss to Weights & Biases?
+    - wandb_project               # W&B project name
+    - wandb_run_name              # W&B run name (None -> auto-generated)
+    - log_every                   # Log to W&B every N training steps
     """
+
+    # Optionally set up Weights & Biases logging
+    if log_wandb:
+        import wandb
+        wandb.init(
+            project=wandb_project,
+            name=wandb_run_name,
+            config={
+                "n_training_steps": n_training_steps,
+                "input_shape": input_shape,
+                "output_shape": output_shape,
+                "batch_size": batch_size,
+                "prob_augment": prob_augment,
+                "var_noise": var_noise,
+                "neighborhood": neighborhood,
+                "sparse_mask": sparse_mask,
+                "optimizer": type(optimizer).__name__,
+                "lr": optimizer.param_groups[0]["lr"],
+                "loss": type(loss).__name__,
+            },
+        )
 
     # Create a fresh timestamped run directory so previous runs are never overwritten
     run_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -229,4 +258,10 @@ def train(
     # Build the pipeline
     with gp.build(pipeline):
       for step in range(n_training_steps):
-         pipeline.request_batch(request)
+         batch = pipeline.request_batch(request)
+         # gp.torch.Train attaches the loss and global iteration to the batch
+         if log_wandb and batch.iteration % log_every == 0:
+            wandb.log({"loss": float(batch.loss)}, step=batch.iteration)
+
+    if log_wandb:
+      wandb.finish()

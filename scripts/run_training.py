@@ -64,4 +64,8 @@ train(
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
     save_snapshots_every = 1, 
     sparse_mask = True,
-    rotate_aug = False)
+    rotate_aug = False,
+    log_wandb = True,
+    wandb_project = "3DSegStuff",
+    wandb_run_name = None,
+    log_every = 1)
