@@ -10,6 +10,7 @@ import json
 # Load model parameters
 setup_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))# I copied this line from Vijay's script, idk how it works, will check alter. 
 
+
 config_path = os.path.join(setup_dir, "config_files/config_unet.json")
 with open(config_path) as f:
     unet_config = json.load(f)
@@ -52,24 +53,24 @@ model = UNet(
 )
 
 loss_fct = weighted_MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.1e5)
 
 train(
     model = model, 
     loss = loss_fct, 
     optimizer = optimizer,
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-MS/annotations_omezarr/train_val/',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-MS/model_outputs/',
+    input_dir = '/mnt/efs/dl_jrc/student_data/S-EC/diam300/',
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-EC/diam300/model_outputs/',
     config_path = config_path,
-    n_training_steps = 10, 
-    input_shape = [1, 16, 64, 64],
-    output_shape = [1, 16, 64, 64],
+    n_training_steps = 10000, 
+    input_shape = [1, 64, 64, 64],
+    output_shape = [1, 44, 24, 24],
     batch_size = 1,
     prob_augment = 0.3, 
     var_noise = 10e-5,
     neighborhood = neighborhood,
-    save_snapshots_every = 1,
-    save_checkpoints_every = 1,
+    save_snapshots_every = 100,
+    save_checkpoints_every = 100,
     sparse_mask = True,
     rotate_aug = False,
     log_wandb = True,
