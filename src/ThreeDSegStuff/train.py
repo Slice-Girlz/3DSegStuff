@@ -118,7 +118,7 @@ def train(
          "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
          } 
          for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
-      ]  
+      ][:2]
    else:
       samples = [
          {"raw": os.path.join(f, "0"), 
