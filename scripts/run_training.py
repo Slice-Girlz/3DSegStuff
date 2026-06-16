@@ -58,7 +58,7 @@ train(
     n_training_steps = 10000, 
     input_shape = [1, 16, 64, 64],
     output_shape = [1, 16, 64, 64],
-    batch_size = 5,
+    batch_size = 1,
     prob_augment = 0.3, 
     var_noise = 10e-5,
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],

@@ -127,7 +127,6 @@ def train(
          for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
       ]
    
-   print(f'Samples: {samples}')
    # assuming same vs
    voxel_size = open_ds(samples[0]["raw"]).voxel_size # World coordinates: voxel coordinate * voxel_size = physical unit
    # voxel_size should be integers
