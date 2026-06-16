@@ -52,6 +52,7 @@ sparse_mask = eval(unet_config['sparse_mask'])
 rotate_aug = eval(unet_config['rotate_aug'])
 log_wandb = eval(unet_config['log_wandb'])
 wandb_project = unet_config['wandb_project']
+lr = float(unet_config['learning_rate'])
 
 # if wandb_project is not None:
 #     wandb_project == eval(wandb_project)
@@ -80,7 +81,9 @@ model = UNet(
 )
 
 loss_fct = weighted_MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.1e5)
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+print(lr)
+print(type(lr))
 
 train(
     model = model, 
