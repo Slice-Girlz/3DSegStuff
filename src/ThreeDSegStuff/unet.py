@@ -230,7 +230,7 @@ class UNet(torch.nn.Module):
         in_channels,
         num_fmaps,
         fmap_inc_factor,
-        outputs,
+        ndims,
         downsample_factors,
         kernel_size_down=None,
         kernel_size_up=None,
@@ -240,7 +240,8 @@ class UNet(torch.nn.Module):
         num_fmaps_out=None,
         num_heads=1,
         constant_upsample=False,
-        padding="valid"
+        padding="valid",
+        final_activation="Sigmoid"
         ):
         """Create a U-Net::
 
@@ -343,7 +344,8 @@ class UNet(torch.nn.Module):
         self.num_heads = num_heads
         self.in_channels = in_channels
         self.out_channels = num_fmaps_out if num_fmaps_out else num_fmaps
-        self.outputs = outputs
+        self.ndims = ndims
+        self.activation = activation
 
         # default arguments
 
@@ -441,9 +443,9 @@ class UNet(torch.nn.Module):
 
         self.affs_head = ConvPass(
             in_channels = num_fmaps, 
-            out_channels = outputs["3d_affs"]["dims"], 
-            kernel_size = [[1, 1, 1]], 
-            activation = "Sigmoid"
+            out_channels = self.ndims, 
+            kernel_sizes = [[1, 1, 1]], 
+            activation = final_activation
             )
 
     def rec_forward(self, level, f_in):

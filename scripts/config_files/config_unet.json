@@ -1,18 +1,17 @@
 {
-    "in_channels": 1,
+    "in_channels": 2,
     "num_fmaps": 12,
     "fmap_inc_factor": 5,
-    "downsample_factors": [[1, 2, 2], [1, 2, 2], [1, 2, 2]],
+    "downsample_factors": [[1, 2, 2], [1, 2, 2]],
     "kernel_size_down": [
-        [[3, 3, 3], [3, 3, 3]],
         [[3, 3, 3], [3, 3, 3]],
         [[3, 3, 3], [3, 3, 3]],
         [[3, 3, 3], [3, 3, 3]]],
     "kernel_size_up": [
         [[3, 3, 3], [3, 3, 3]],
-        [[3, 3, 3], [3, 3, 3]],
         [[3, 3, 3], [3, 3, 3]]],
-    "activation" : "Sigmoid",
+    "activation" : "ReLU",
+    "final_activation" : "Sigmoid",
     "num_fmaps_out": "None",
     "num_heads": 1,
     "constant_upsample" : "True",
@@ -22,7 +21,7 @@
             "dtype": "uint8",
             "dims": 3,
             "neighborhood": [[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-	    "grow_boundary": 1
+            "grow_boundary": 1
         }
     }
 }

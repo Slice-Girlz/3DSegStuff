@@ -1,6 +1,6 @@
 from ThreeDSegStuff.train import train
 from ThreeDSegStuff.loss import weighted_MSELoss
-from ThreeDSegStuff.unet_old import UNet
+from ThreeDSegStuff.unet import UNet
 import torch.optim
 import torch
 import os
@@ -26,13 +26,14 @@ kernel_size_down = eval(
 kernel_size_up = eval(
     repr(unet_config["kernel_size_up"]).replace("[", "(").replace("]", ")")
 )
-activation = eval(unet_config["activation"])
+activation = unet_config["activation"]
+final_activation = unet_config["final_activation"]
 
-outputs = unet_config["outputs"]
+ndims = unet_config["outputs"]["3d_affs"]["dims"]
 padding = unet_config["padding"]
 constant_upsample = unet_config["constant_upsample"]
-boundary = unet_config["grow_boundary"]
-neighborhood = unet_config["neighborhood"]
+neighborhood = unet_config["outputs"]["3d_affs"]["neighborhood"]
+boundary = unet_config["outputs"]["3d_affs"]["grow_boundary"]
 
 
 #initialize the Unet with the correct parameters, from the config file. 
@@ -40,13 +41,14 @@ model = UNet(
     in_channels=in_channels,
     num_fmaps=num_fmaps,
     fmap_inc_factor=fmap_inc_factor,
-    outputs=outputs,
+    ndims=ndims,
     downsample_factors=downsample_factors,
     kernel_size_down=kernel_size_down,
     kernel_size_up=kernel_size_up,
     activation=activation,
     constant_upsample=constant_upsample,
-    padding=padding
+    padding=padding,
+    final_activation=final_activation
 )
 
 loss_fct = weighted_MSELoss()
