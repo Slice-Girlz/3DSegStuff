@@ -7,6 +7,7 @@ import gunpowder as gp
 from funlib.geometry import Roi, Coordinate
 from funlib.persistence import open_ds, Array
 #from smooth_augment import SmoothAugment
+from ThreeDSegStuff.validate import validate
 import os
 import logging
 import glob
@@ -38,7 +39,10 @@ def train(
    wandb_project = "3DSegStuff",
    wandb_run_name = None,
    log_every = 1,
-   unet_config = None
+   unet_config = None,
+   n_val_files = 5,
+   validate_every = 500,
+   n_val_batches = 10
 ):
    """
 
@@ -61,6 +65,9 @@ def train(
    - wandb_run_name              # W&B run name (None -> auto-generated)
    - log_every                   # Log to W&B every N training steps
    - unet_config                 # Dict of UNet architecture params (logged to W&B)
+   - n_val_files                 # Number of (last, sorted) ome.zarr files held out of input_dir for validation
+   - validate_every              # Run validation every N global training iterations (0 to disable)
+   - n_val_batches               # Number of random patches to average the validation loss over
    """
 
    # Create a fresh timestamped run directory so previous runs are never overwritten
@@ -94,6 +101,9 @@ def train(
                "lr": optimizer.param_groups[0]["lr"],
                "loss": type(loss).__name__,
                "unet_config": unet_config,
+               "n_val_files": n_val_files,
+               "validate_every": validate_every,
+               "n_val_batches": n_val_batches,
          },
       )
 
@@ -111,23 +121,36 @@ def train(
    optimizer = optimizer
    batch_size = batch_size
    
-   if sparse_mask==True:
-      samples = [
-         {"raw": os.path.join(f, "0"), 
-         "labels": os.path.join(f, "labels/labels/0"),
-         "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
-         } 
-         for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
-      ]  
+   def _make_samples(files, sparse_mask):
+      if sparse_mask==True:
+         return [
+            {"raw": os.path.join(f, "0"),
+            "labels": os.path.join(f, "labels/labels/0"),
+            "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
+            }
+            for f in files
+         ]
+      else:
+         return [
+            {"raw": os.path.join(f, "0"),
+            "labels": os.path.join(f, "labels/labels/0")
+            }
+            for f in files
+         ]
+
+   # Deterministically hold out the last n_val_files (sorted) for validation,
+   # and exclude them from training so there is no leakage.
+   all_files = sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
+   if n_val_files > 0 and len(all_files) > n_val_files:
+      train_files, val_files = all_files[:-n_val_files], all_files[-n_val_files:]
    else:
-      samples = [
-         {"raw": os.path.join(f, "0"), 
-         "labels": os.path.join(f, "labels/labels/0")
-         } 
-         for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
-      ]
-   
+      train_files, val_files = all_files, []
+   samples = _make_samples(train_files, sparse_mask)
+   val_samples = _make_samples(val_files, sparse_mask)
+
+   logging.info(f"Train files: {len(samples)}, Val files: {len(val_samples)}")
    print(f'Samples: {samples}')
+   print(f'Val samples: {val_samples}')
    # assuming same vs
    voxel_size = open_ds(samples[0]["raw"]).voxel_size # World coordinates: voxel coordinate * voxel_size = physical unit
    # voxel_size should be integers
@@ -263,6 +286,26 @@ def train(
          # gp.torch.Train attaches the loss and global iteration to the batch
          if log_wandb and batch.iteration % log_every == 0:
             wandb.log({"loss": float(batch.loss)}, step=batch.iteration)
+
+         # Periodic validation on the held-out subset. validate() runs the model
+         # in eval/no_grad mode and restores train mode before we step again.
+         if val_samples and validate_every and batch.iteration % validate_every == 0:
+            val_loss = validate(
+               model=model,
+               loss=loss,
+               val_samples=val_samples,
+               voxel_size=voxel_size,
+               input_shape=input_shape,
+               output_shape=output_shape,
+               neighborhood=neighborhood,
+               batch_size=batch_size,
+               sparse_mask=sparse_mask,
+               n_val_batches=n_val_batches,
+               device='cuda',
+            )
+            logging.info(f"[iter {batch.iteration}] val_loss = {val_loss:.6f}")
+            if log_wandb:
+               wandb.log({"val_loss": val_loss}, step=batch.iteration)
 
    if log_wandb:
       wandb.finish()

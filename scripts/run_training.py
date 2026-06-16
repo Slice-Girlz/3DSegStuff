@@ -70,4 +70,7 @@ train(
     wandb_project = "3DSegStuff",
     wandb_run_name = None,
     log_every = 1,
+    n_val_files = 5,        # hold out the last 5 (sorted) ome.zarr files for validation
+    validate_every = 500,   # run validation every 500 training iterations
+    n_val_batches = 10,     # average val loss over 10 random patches
     unet_config = unet_config) # contents of the config dict, for saving to WanDB
