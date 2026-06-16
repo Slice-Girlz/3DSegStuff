@@ -226,8 +226,7 @@ def save_to_zarr(
     funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
     root["0"].attrs.update(funlib_metadata)
     root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
-    if make_sparse_mask:
-        root["labels/sparse_label_masks/0"].attrs.update(funlib_metadata)
+    root["labels/sparse_label_masks/0"].attrs.update(funlib_metadata)
 
 
 
