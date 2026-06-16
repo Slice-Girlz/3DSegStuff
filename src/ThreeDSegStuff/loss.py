@@ -13,6 +13,6 @@ class weighted_MSELoss(nn.Module):
         pixelwise_loss = ((pred_affs - gt_affs)**2)*affs_weights
         count_affinities = torch.count_nonzero(affs_weights)+1e-8
 
-        return sum(pixelwise_loss)/count_affinities
+        return pixelwise_loss.sum()/count_affinities
 
 
