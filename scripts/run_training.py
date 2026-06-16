@@ -16,8 +16,6 @@ with open(config_path) as f:
     unet_config = json.load(f)
 
 in_channels = unet_config["in_channels"]
-print("in_channels:", in_channels)
-print("in_channels shape:", type(in_channels))
 num_fmaps = unet_config["num_fmaps"]
 fmap_inc_factor = unet_config["fmap_inc_factor"]
 downsample_factors = eval(
@@ -41,10 +39,8 @@ boundary = unet_config["outputs"]["3d_affs"]["grow_boundary"]
  
 input_dir = unet_config['input_dir']
 output_dir = unet_config['output_dir']
-n_training_steps = unet_config['n_training_steps'], 
+n_training_steps = unet_config['n_training_steps']
 
-print(n_training_steps)
-print(type(n_training_steps))
 input_shapes = unet_config['input_shape'] #watch out that the global variable is plural but inside the json and fxn the arg is singular
 output_shapes = unet_config['output_shape'] #watch out that the global variable is plural but inside the json and fxn the arg is singular
 batch_size = unet_config['batch_size']

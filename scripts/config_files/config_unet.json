@@ -28,7 +28,7 @@
     "input_dir" : "/mnt/efs/dl_jrc/student_data/S-EC/diam300/",
     "output_dir" : "/mnt/efs/dl_jrc/student_data/S-EC/diam300/model_outputs/",
     "config_path" : "3DSegStuff/scripts/config_files/config_unet.json", 
-    "input_shape" : [1, 64, 64, 64],
+    "input_shape" : [1, 128, 128, 128],
     "output_shape" : [1, 44, 24, 24],
     "batch_size" : 1,
     "prob_augment" : 0.3, 
