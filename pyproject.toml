@@ -37,7 +37,8 @@ dependencies = [
     "nd2",
     "tifffile",
     "matplotlib",
-    "lxml"
+    "lxml",
+    "wandb",
 ]
 
 [project.optional-dependencies]
