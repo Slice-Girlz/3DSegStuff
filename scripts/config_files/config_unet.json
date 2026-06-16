@@ -1,13 +1,28 @@
 {
-    "depth": 2,
-    "in_channels": 2,
-    "out_channels": 3,
-    "final_activation": "torch.nn.Sigmoid()",
-    "num_fmaps": 24,
+    "in_channels": 1,
+    "num_fmaps": 12,
     "fmap_inc_factor": 5,
-    "downsample_factor": 2,
-    "kernel_size": 3,
-    "padding": "same",
-    "upsample_mode": "nearest",
-    "ndim": 3
+    "downsample_factors": [[1, 2, 2], [1, 2, 2], [1, 2, 2]],
+    "kernel_size_down": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]],
+    "kernel_size_up": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]],
+    "activation" : "Sigmoid",
+    "num_fmaps_out": "None",
+    "num_heads": 1,
+    "constant_upsample" : "True",
+    "padding":"valid",
+    "outputs": {
+        "3d_affs": {
+            "dtype": "uint8",
+            "dims": 3,
+            "neighborhood": [[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+	    "grow_boundary": 1
+        }
+    }
 }

@@ -38,7 +38,8 @@ def train(
    wandb_project = "3DSegStuff",
    wandb_run_name = None,
    log_every = 1,
-   unet_config = None
+   unet_config = None,
+   boundary = 1,
 ):
    """
 
@@ -182,7 +183,7 @@ def train(
    poisson_noise_augment = gp.NoiseAugment(raw, mode='poisson', p=prob_augment, clip=True)
    #smooth_augment = SmoothAugment(raw, p=prob_augment)
 
-   grow_boundary = gp.GrowBoundary(labels, mask=unlabelled)
+   grow_boundary = gp.GrowBoundary(labels, mask=unlabelled, steps=boundary, only_xy=True)
 
    # Prepare affinities
    affinities = gp.AddAffinities(
