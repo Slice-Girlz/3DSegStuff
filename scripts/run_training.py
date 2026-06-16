@@ -61,6 +61,10 @@ train(
     prob_augment = 0.3, 
     var_noise = 10e-5,
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-    save_snapshots_every = 1, 
-    sparse_mask = True)
+    save_snapshots_every = 1,
+    sparse_mask = True,
+    log_wandb = True,
+    wandb_project = "3DSegStuff",
+    wandb_run_name = None,
+    log_every = 1)
 
