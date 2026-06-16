@@ -18,10 +18,11 @@ logging.basicConfig(level=logging.INFO)
 
 def train(
    model,
-   loss, 
+   loss,
    optimizer,
    input_dir,
    output_dir,
+   config_path = None,
    n_training_steps = 10,
    input_shape = [1, 16, 128, 128],
    output_shape = [1, 14, 124, 124],
@@ -43,7 +44,8 @@ def train(
 
    Inputs:
    - input_dir                   # Directory with omezarr files
-   - output_dir                  # Directory to store outputs in 
+   - output_dir                  # Directory to store outputs in (a timestamped run subfolder is created inside it)
+   - config_path                 # Path to the config file to copy into the run folder for provenance
    - n_training_steps            # how many batches?
    - channel                     # This is the channel that you want to do your segmentations in
    - input_shape                 # Input patch size: figure out correct based on model architecture
@@ -60,6 +62,18 @@ def train(
    - log_every                   # Log to W&B every N training steps
    - unet_config                 # Dict of UNet architecture params (logged to W&B)
    """
+
+   # Create a fresh timestamped run directory so previous runs are never overwritten
+   run_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+   run_dir = os.path.join(output_dir, run_name)
+   os.makedirs(run_dir, exist_ok=True)
+   logging.info(f"Saving outputs to {run_dir}")
+
+   # Copy the config used for this run for reproducibility
+   if config_path is not None:
+      shutil.copy(config_path, os.path.join(run_dir, os.path.basename(config_path)))
+   else:
+      logging.warning("No config_path provided: config will not be copied to the run directory.")
 
    # Optionally set up Weights & Biases logging
    if log_wandb:
@@ -142,7 +156,7 @@ def train(
          + gp.MergeProvider() 
       )
       + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
-      + gp.Pad(raw, output_size //2)         # Set this appropriately
+      + gp.Pad(raw, output_size//2)         # Set this appropriately
       + gp.Pad(labels, output_size//2)      # Set this appropriately
       + gp.Pad(unlabelled, output_size//2)      # Set this appropriately
       + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
@@ -200,6 +214,7 @@ def train(
          2: affs_weights
       },
       save_every=save_checkpoints_every,
+      checkpoint_basename=os.path.join(run_dir, "model"),
       device='cuda'
    )
 
@@ -217,7 +232,7 @@ def train(
          unlabelled: "unlabelled"
       },
       output_filename="batch_{iteration}.zarr",
-      output_dir=os.path.join(output_dir, "snapshots"),
+      output_dir=os.path.join(run_dir, "snapshots"),
       every=save_snapshots_every
    )
 

@@ -54,6 +54,7 @@ train(
     optimizer = optimizer,
     input_dir = '/mnt/efs/dl_jrc/student_data/S-MS/annotations_omezarr/train_val/',
     output_dir = '/mnt/efs/dl_jrc/student_data/S-MS/model_outputs/',
+    config_path = config_path,
     n_training_steps = 10, #10000
     input_shape = [1, 16, 64, 64],
     output_shape = [1, 16, 64, 64],
