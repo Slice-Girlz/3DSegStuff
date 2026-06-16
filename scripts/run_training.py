@@ -54,7 +54,6 @@ train(
     optimizer = optimizer,
     input_dir = '/mnt/efs/dl_jrc/student_data/S-MS/annotations_omezarr/',
     output_dir = '/mnt/efs/dl_jrc/student_data/S-MS/model_outputs',
-    config_path = config_path,
     n_training_steps = 10,
     input_shape = [1, 16, 64, 64],
     output_shape = [1, 16, 64, 64],
@@ -68,4 +67,5 @@ train(
     log_wandb = True,
     wandb_project = "3DSegStuff",
     wandb_run_name = None,
-    log_every = 1)
+    log_every = 1,
+    unet_config = unet_config) # contents of the config dict, for saving to WanDB
