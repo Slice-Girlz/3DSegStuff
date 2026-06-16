@@ -32,10 +32,12 @@ def train(
    save_snapshots_every = 1,
    save_checkpoints_every = 5,
    sparse_mask = False,
+   rotate_aug = True,
    log_wandb = False,
    wandb_project = "3DSegStuff",
    wandb_run_name = None,
    log_every = 1,
+   unet_config = None
 ):
    """
 
@@ -56,6 +58,7 @@ def train(
    - wandb_project               # W&B project name
    - wandb_run_name              # W&B run name (None -> auto-generated)
    - log_every                   # Log to W&B every N training steps
+   - unet_config                 # Dict of UNet architecture params (logged to W&B)
    """
 
    # Optionally set up Weights & Biases logging
@@ -76,6 +79,7 @@ def train(
                "optimizer": type(optimizer).__name__,
                "lr": optimizer.param_groups[0]["lr"],
                "loss": type(loss).__name__,
+               "unet_config": unet_config,
          },
       )
 
@@ -138,9 +142,9 @@ def train(
          + gp.MergeProvider() 
       )
       + gp.Normalize(raw)                # Convert to floats (should already be floats after converting to ome-zarr)
-      + gp.Pad(raw, output_size)         # Set this appropriately
-      + gp.Pad(labels, output_size)      # Set this appropriately
-      + gp.Pad(unlabelled, output_size)      # Set this appropriately
+      + gp.Pad(raw, output_size //2)         # Set this appropriately
+      + gp.Pad(labels, output_size//2)      # Set this appropriately
+      + gp.Pad(unlabelled, output_size//2)      # Set this appropriately
       + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
       for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
 
@@ -152,7 +156,7 @@ def train(
    elastic_augment = gp.DeformAugment(
    control_point_spacing = (10 * voxel_size[-2], 10 * voxel_size[-1]),
    jitter_sigma = (1.5 * voxel_size[-2], 1.5 * voxel_size[-1]),
-   rotate = True, 
+   rotate = rotate_aug, 
    spatial_dims = 2            # Only deform XY
    )
    intensity_augment = gp.IntensityAugment(
