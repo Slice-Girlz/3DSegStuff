@@ -3,6 +3,8 @@
 model_checkpoint_*
 snapshots/
 test.zarr/
+scripts/2026-*
+scripts/wandb/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
