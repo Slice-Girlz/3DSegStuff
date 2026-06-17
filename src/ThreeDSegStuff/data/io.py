@@ -234,33 +234,33 @@ def save_to_zarr(
 # === No label ===
 
 def save_to_zarr_noLabel(
-    image: np.ndarray, # (C, Z, Y, X)
-    save_path="./volume.ome.zarr", # path to ONE .ome.zarr (one sample, one frame)
-    image_chunks=(1, 64, 64, 64), # C, Z, Y, X
+    image: np.ndarray,  # (C, Z, Y, X)
+    save_path="./volume.ome.zarr",  # path to ONE .ome.zarr
+    image_chunks=(1, 64, 64, 64),  # C, Z, Y, X
     image_axes="czyx",
     image_metadata=None,
+    voxel_size=None,  # explicit (z, y, x), overrides metadata/defaults
+    unit=None,        # explicit physical unit, overrides default
 ):
     """
-    Write a single volume to its own OME-Zarr store at the store root.
+    Write a single image volume to its own OME-Zarr store at the store root.
 
-    Each .ome.zarr holds exactly one sample at one frame: the image lives at the
-    root as a (C, Z, Y, X) multiscale, and the label lives under
-    labels/<label_name> as a (C, Z, Y, X) multiscale. Reader-native metadata,
-    when provided, is stored on the root group attrs (JSON-coerced).
+    Each .ome.zarr holds exactly one sample at one frame.
+    The image lives at the root as a (C, Z, Y, X) multiscale.
 
-    funlib.persistence-style spatial metadata (voxel_size, offset, units, ...) is
-    derived from ``image_metadata`` and stamped onto the image and label arrays so
-    the store opens directly in funlib.persistence / funlib.show.neuroglancer /
-    gunpowder. See :mod:`ThreeDSegStuff.data.metadata`.
+    Reader-native metadata, when provided, is stored on the root group attrs.
+
+    funlib.persistence-style spatial metadata including voxel_size, resolution,
+    offset, and units is stamped onto the image array so the store opens directly
+    in funlib.persistence / funlib.show.neuroglancer / gunpowder.
     """
     if image.ndim != 4:
-        raise ValueError(f"Expected image with 4 dims (C, Z, Y, X), got shape {image.shape}")
-    # if label.ndim != 4:
-    #     raise ValueError(f"Expected label with 4 dims (C, Z, Y, X), got shape {label.shape}")
+        raise ValueError(
+            f"Expected image with 4 dims (C, Z, Y, X), got shape {image.shape}"
+        )
+
     if len(image_chunks) != 4:
         raise ValueError("Expected image_chunks must have 4 items (C, Z, Y, X)")
-    # if len(label_chunks) != 4:
-    #     raise ValueError("Expected label_chunks must have 4 items (C, Z, Y, X)")
 
     store = parse_url(save_path, mode="w").store
     root = zarr.group(store=store)
@@ -276,8 +276,15 @@ def save_to_zarr_noLabel(
     if image_metadata is not None:
         root.attrs["native_metadata"] = _jsonify_metadata(image_metadata)
 
-    # Stamp funlib-style metadata onto the image and label arrays (level 0). The
-    # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
-    funlib_metadata = prepare_metadata(image_metadata)
-    funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
+    # Stamp funlib-style metadata onto the image array at level 0.
+    # The image data lives at "0".
+    funlib_metadata = prepare_metadata(
+        image_metadata,
+        voxel_size=voxel_size,
+        unit=unit,
+    )
+
+    # Gunpowder reads `resolution`
+    funlib_metadata["resolution"] = funlib_metadata["voxel_size"]
+
     root["0"].attrs.update(funlib_metadata)

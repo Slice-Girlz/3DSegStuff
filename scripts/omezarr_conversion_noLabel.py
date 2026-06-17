@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
         "--chunk-size",
         nargs=4,
         default=(1, 64, 64, 64),
-        help="Chunk size (C, Z, Y, X) for both image and label arrays. "
+        help="Chunk size (C, Z, Y, X) for image arrays. "
         "Default: (1, 64, 64, 64).",
     )
     parser.add_argument(
@@ -36,14 +36,28 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Axis layout of the raw loaded arrays (e.g. 'zyx' or 'czyx').",
     )
-
     parser.add_argument(
         "--normalize",
         choices=["percentile", "min_max", "none"],
         default="percentile",
         help="Image intensity normalization. Default: percentile.",
     )
+    parser.add_argument(
+        "--voxel_size",
+        nargs=3,
+        type=int,
+        default=None,
+        help="Voxel size (Z, Y, X) to stamp on the output, overriding any file "
+        "metadata and the default in metadata.py.",
+    )
+    parser.add_argument(
+        "--unit",
+        type=str,
+        default=None,
+        help="Physical unit for the voxel size, overriding the default unit in metadata.py.",
+    )
     return parser.parse_args()
+
 
 
 def main() -> None:
@@ -71,10 +85,8 @@ def main() -> None:
 
         image = preprocess_noLabel(
             image_array=image,
-            # label_array=mask,
             image_dims=args.input_dims,
-            # label_dims=args.label_dims,
-            normalize="percentile",
+            normalize=args.normalize,
         )
         
         save_path = out_dir / f"{Path(image_files[i]).stem}.ome.zarr"
@@ -86,6 +98,8 @@ def main() -> None:
             image_chunks=image_chunks,
             image_axes="czyx",
             image_metadata=image_meta,
+            voxel_size=args.voxel_size,
+            unit=args.unit,
         )
         print(f"Wrote {save_path.name}  image={image.shape}")
 
