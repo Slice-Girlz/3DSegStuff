@@ -1,346 +1,492 @@
-from typing import Literal, Optional, Tuple
-
+from funlib.learn.torch.models.conv4d import Conv4d
+import math
 import torch
+import torch.nn as nn
 
 
-class ConvBlock(torch.nn.Module):
-    """A convolution block for a U-Net. Contains two convolutions, each followed by a ReLU."""
+class ConvPass(torch.nn.Module):
 
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
-        padding: Literal["same", "valid"] = "same",
-        ndim: Literal[2, 3] = 2,
+        self, in_channels, out_channels, kernel_sizes, activation, padding="valid"
     ):
-        """
-        Args:
-            in_channels (int): The number of input channels for this conv block.
-            out_channels (int): The number of output channels for this conv block.
-            kernel_size (int): The size of the kernel. A kernel size of N signifies an NxN or NxNxN
-                kernel for ``ndim=2`` and ``ndim=3``, respectively.
-            padding (Literal["same", "valid"], optional): The type of padding to
-                use. "same" means padding is added to preserve the input dimensions.
-                "valid" means no padding is added. Defaults to "same".
-            ndim (Literal[2, 3], optional): Number of dimensions for the convolution operation. Use
-                2 for 2D convolutions and 3 for 3D convolutions. Defaults to 2.
 
-        Raises:
-            ValueError: If unsupported values are used for padding or ndim.
-        """
-        super().__init__()
-        if padding not in ("valid", "same"):
-            msg = f"Invalid string value for padding: {padding=}. Options are same or valid."
-            raise ValueError(msg)
-        if ndim not in (2, 3):
-            msg = f"Invalid number of dimensions: {ndim=}. Options are 2 or 3."
-            raise ValueError(msg)
-        convops = {2: torch.nn.Conv2d, 3: torch.nn.Conv3d}
-        # define layers in conv pass
-        self.conv_pass = torch.nn.Sequential(
-            convops[ndim](
-                in_channels, out_channels, kernel_size=kernel_size, padding=padding
-            ),
-            torch.nn.ReLU(),
-            convops[ndim](
-                out_channels, out_channels, kernel_size=kernel_size, padding=padding
-            ),
-            torch.nn.ReLU(),
-        )
+        super(ConvPass, self).__init__()
 
-        for _name, layer in self.named_modules():
-            if isinstance(layer, tuple(convops.values())):
-                torch.nn.init.kaiming_normal_(layer.weight, nonlinearity="relu")
+        if activation is not None:
+            activation = getattr(torch.nn, activation)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output: torch.Tensor = self.conv_pass(x)
-        return output
+        self.activation = activation
+        layers = []
+        residual = []
+
+        for index, kernel_size in enumerate(kernel_sizes):
+
+            self.dims = len(kernel_size)
+
+            conv = {2: torch.nn.Conv2d, 3: torch.nn.Conv3d, 4: Conv4d}[self.dims]
+
+            if padding == "same":
+                pad = tuple(k // 2 for k in kernel_size)
+            else:
+                pad = 0
+
+            try:
+                layers.append(conv(in_channels, out_channels, kernel_size, padding=pad))
+            except KeyError:
+                raise RuntimeError("%dD convolution not implemented" % self.dims)
+
+            if index == 0:
+                residual.append(
+                    conv(in_channels, out_channels, kernel_size=1, padding=pad)
+                )
+
+            in_channels = out_channels
+
+            if activation is not None and index < len(kernel_sizes) - 1:
+                layers.append(activation())
+
+        self.out_activation = None
+        if activation is not None:
+            self.out_activation = activation()
+
+        self.conv_pass = torch.nn.Sequential(*layers)
+        self.residual = torch.nn.Sequential(*residual)
+
+    def crop(self, to_crop, target_size):
+        z, y, x = target_size[-3:]
+        sx = (to_crop.shape[-1] - x) // 2
+        sy = (to_crop.shape[-2] - y) // 2
+        sz = (to_crop.shape[-3] - z) // 2
+
+        return to_crop[..., sz : sz + z, sy : sy + y, sx : sx + x]
+
+    def forward(self, x):
+
+        out = self.conv_pass(x)
+
+        res = self.residual(x)
+
+        cropped = self.crop(res, out.size())
+
+        ret = out + cropped
+
+        if self.activation is not None:
+            ret = self.out_activation(ret)
+
+        return ret
 
 
 class Downsample(torch.nn.Module):
-    """Downsample module for U-Net"""
 
-    def __init__(self, downsample_factor: int, ndim: Literal[2, 3] = 2):
-        """
-        Args:
-            downsample_factor (int): Factor by which to downsample featuer maps.
-            ndim (Literal[2,3], optional): Number of dimensions for the downsample operation.
-                Defaults to 2.
+    def __init__(self, downsample_factor):
 
-        Raises:
-            ValueError: If unsupported value is used for ndim.
-        """
+        super(Downsample, self).__init__()
 
-        super().__init__()
-        if ndim not in (2, 3):
-            msg = f"Invalid number of dimensions: {ndim=}. Options are 2 or 3."
-            raise ValueError(msg)
-        self.ndim = ndim
-        downops = {2: torch.nn.MaxPool2d, 3: torch.nn.MaxPool3d}
+        self.dims = len(downsample_factor)
         self.downsample_factor = downsample_factor
 
-        self.down = downops[ndim](downsample_factor)
+        pool = {
+            2: torch.nn.MaxPool2d,
+            3: torch.nn.MaxPool3d,
+            4: torch.nn.MaxPool3d,  # only 3D pooling, even for 4D input
+        }[self.dims]
 
-    def check_valid(self, image_size: Tuple[int, ...]) -> bool:
-        """Check if the downsample factor evenly divides each image dimension."""
-        for dim in image_size:
-            if dim % self.downsample_factor != 0:
-                return False
-        return True
+        self.down = pool(downsample_factor, stride=downsample_factor)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
+    def forward(self, x):
 
-        Args:
-            x (torch.Tensor): Input tensor.
+        for d in range(1, self.dims + 1):
+            if x.size()[-d] % self.downsample_factor[-d] != 0:
+                raise RuntimeError(
+                    "Can not downsample shape %s with factor %s, mismatch "
+                    "in spatial dimension %d"
+                    % (x.size(), self.downsample_factor, self.dims - d)
+                )
 
-        Raises:
-            RuntimeError: If shape of input is not divisible by downsampling factor.
-
-        Returns:
-            torch.Tensor: Downsampled tensor.
-        """
-        if not self.check_valid(tuple(x.size()[-self.ndim :])):
-            raise RuntimeError(
-                f"Can not downsample shape {x.size()} with factor {self.downsample_factor}"
-            )
-        output: torch.Tensor = self.down(x)
-        return output
+        return self.down(x)
 
 
-def center_crop(x, target_spatial_shape):
-    """Center-crop x to match spatial dimensions given by target_spatial_shape."""
+class Upsample(torch.nn.Module):
 
-    x_target_size = x.size()[:2] + torch.Size(target_spatial_shape)
-
-    offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
-
-    slices = tuple(slice(o, o + s) for o, s in zip(offset, x_target_size))
-
-    return x[slices]
-
-
-class CropAndConcat(torch.nn.Module):
-
-    def forward(
-        self, encoder_output: torch.Tensor, upsample_output: torch.Tensor
-    ) -> torch.Tensor:
-        encoder_cropped = center_crop(encoder_output, upsample_output.size()[2:])
-
-        return torch.cat([encoder_cropped, upsample_output], dim=1)
-
-
-class OutputConv(torch.nn.Module):
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        activation: Optional[torch.nn.Module] = None,
-        ndim: Literal[2, 3] = 2,
+        scale_factor,
+        mode="transposed_conv",
+        in_channels=None,
+        out_channels=None,
+        crop_factor=None,
+        next_conv_kernel_sizes=None,
+        padding="valid",
     ):
-        """A convolutional block that applies a torch activation function.
 
-        Args:
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            activation (torch.nn.Module  |  None, optional): An instance of any torch activation
-                function (e.g., ``torch.nn.ReLU()``). Defaults to None for no activation after the
-                convolution.
-            ndim (Literal[2,3], optional): Number of dimensions for the convolution operation.
-                Defaults to 2.
-        Raises:
-            ValueError: If unsupported values is used for ndim.
+        super(Upsample, self).__init__()
+
+        assert (crop_factor is None) == (
+            next_conv_kernel_sizes is None
+        ), "crop_factor and next_conv_kernel_sizes have to be given together"
+
+        self.crop_factor = crop_factor
+        self.next_conv_kernel_sizes = next_conv_kernel_sizes
+
+        self.dims = len(scale_factor)
+
+        if mode == "transposed_conv":
+
+            up = {2: torch.nn.ConvTranspose2d, 3: torch.nn.ConvTranspose3d}[self.dims]
+
+            self.up = up(
+                in_channels, out_channels, kernel_size=scale_factor, stride=scale_factor
+            )
+
+        else:
+
+            self.up = torch.nn.Upsample(scale_factor=scale_factor, mode=mode)
+
+        self.padding = padding
+
+    def crop_to_factor(self, x, factor, kernel_sizes):
+        """Crop feature maps to ensure translation equivariance with stride of
+        upsampling factor. This should be done right after upsampling, before
+        application of the convolutions with the given kernel sizes.
+
+        The crop could be done after the convolutions, but it is more efficient
+        to do that before (feature maps will be smaller).
         """
-        super().__init__()
-        if ndim not in (2, 3):
-            msg = f"Invalid number of dimensions: {ndim=}. Options are 2 or 3."
-            raise ValueError(msg)
-        convops = {2: torch.nn.Conv2d, 3: torch.nn.Conv3d}
-        self.final_conv = convops[ndim](
-            in_channels, out_channels, 1, padding=0
-        )  # leave this out
-        self.activation = activation
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.final_conv(x)
-        if self.activation is not None:
-            x = self.activation(x)
+        shape = x.size()
+        spatial_shape = shape[-self.dims :]
+
+        # the crop that will already be done due to the convolutions
+        convolution_crop = tuple(
+            sum(ks[d] - 1 for ks in kernel_sizes) for d in range(self.dims)
+        )
+
+        # we need (spatial_shape - convolution_crop) to be a multiple of
+        # factor, i.e.:
+        #
+        # (s - c) = n*k
+        #
+        # we want to find the largest n for which s' = n*k + c <= s
+        #
+        # n = floor((s - c)/k)
+        #
+        # this gives us the target shape s'
+        #
+        # s' = n*k + c
+
+        ns = (
+            int(math.floor(float(s - c) / f))
+            for s, c, f in zip(spatial_shape, convolution_crop, factor)
+        )
+        target_spatial_shape = tuple(
+            n * f + c for n, c, f in zip(ns, convolution_crop, factor)
+        )
+
+        if target_spatial_shape != spatial_shape:
+
+            assert all(
+                ((t > c) for t, c in zip(target_spatial_shape, convolution_crop))
+            ), (
+                "Feature map with shape %s is too small to ensure "
+                "translation equivariance with factor %s and following "
+                "convolutions %s" % (shape, factor, kernel_sizes)
+            )
+
+            return self.crop(x, target_spatial_shape)
+
         return x
+
+    def crop(self, x, shape):
+        """Center-crop x to match spatial dimensions given by shape."""
+
+        x_target_size = x.size()[: -self.dims] + shape
+
+        offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
+
+        slices = tuple(slice(o, o + s) for o, s in zip(offset, x_target_size))
+
+        return x[slices]
+
+    def forward(self, f_left, g_out):
+
+        g_up = self.up(g_out)
+
+        if self.next_conv_kernel_sizes is not None and self.padding == "valid":
+            g_cropped = self.crop_to_factor(
+                g_up, self.crop_factor, self.next_conv_kernel_sizes
+            )
+        else:
+            g_cropped = g_up
+
+        f_cropped = self.crop(f_left, g_cropped.size()[-self.dims :])
+
+        return torch.cat([f_cropped, g_cropped], dim=1)
 
 
 class UNet(torch.nn.Module):
+
     def __init__(
         self,
-        depth: int,
-        in_channels: int,
-        out_channels: int = 1,   # affinities c = 3
-        final_activation: Optional[torch.nn.Module] = None,
-        num_fmaps: int = 64,
-        fmap_inc_factor: int = 2,
-        downsample_factor: int = 2,
-        kernel_size: int = 3,
-        padding: Literal["same", "valid"] = "same",
-        upsample_mode: str = "nearest",
-        ndim: Literal[2, 3] = 2,
-    ):
-        """A U-Net for 2D or 3D input that expects tensors shaped like:
-        ``(batch, channels, height, width)`` or ``(batch, channels, depth, height, width)``,
+        in_channels,
+        num_fmaps,
+        fmap_inc_factor,
+        ndims,
+        downsample_factors,
+        kernel_size_down=None,
+        kernel_size_up=None,
+        activation="ReLU",
+        fov=(1, 1, 1),
+        voxel_size=(1, 1, 1),
+        num_fmaps_out=None,
+        num_heads=1,
+        constant_upsample=False,
+        padding="valid",
+        final_activation="Sigmoid"
+        ):
+        """Create a U-Net::
+
+            f_in --> f_left --------------------------->> f_right--> f_out
+                        |                                   ^
+                        v                                   |
+                     g_in --> g_left ------->> g_right --> g_out
+                                 |               ^
+                                 v               |
+                                       ...
+
+        where each ``-->`` is a convolution pass, each `-->>` a crop, and down
+        and up arrows are max-pooling and transposed convolutions,
         respectively.
 
-        Args:
-            depth (int): The number of levels in the U-Net. 2 is the smallest that really makes
-                sense for the U-Net architecture.
-            in_channels (int): The number of input channels in the images.
-            out_channels (int, optional): How many channels the output should have. Depends on your
-                task. Defaults to 1.
-            final_activation (Optional[torch.nn.Module], optional): Activation to use in final
-                output block. Depends on your task. Defaults to None.
-            num_fmaps (int, optional): Number of feature maps in the first layer. Defaults to 64.
-            fmap_inc_factor (int, optional): Factor by which to multiply the number of feature maps
-                between levels. Level ``l`` will have ``num_fmaps*fmap_inc_factor**l`` feature maps.
-                Defaults to 2.
-            downsample_factor (int, optional): Factor for down- and upsampling of the feature maps
-                between levels. Defaults to 2.
-            kernel_size (int, optional): Kernel size to use in convolutions on both sides of the
-                UNet. Defaults to 3.
-            padding (Literal["same", "valid"], optional): The type of padding to
-                use. "same" means padding is added to preserve the input dimensions.
-                "valid" means no padding is added. Defaults to "same".
-            upsample_mode (str, optional): The upsampling mode to pass to ``torch.nn.Upsample``.
-                Usually "nearest" or "bilinear". Defaults to "nearest".
-            ndim (Literal[2, 3], optional): Number of dimensions for the UNet. Use 2 for 2D-UNet and
-                3 for 3D-UNet. Defaults to 2.
+        The U-Net expects 3D or 4D tensors shaped like::
 
-        Raises:
-            ValueError: If unsupported values are used for padding or ndim.
+            ``(batch=1, channels, [length,] depth, height, width)``.
+
+        This U-Net performs only "valid" convolutions, i.e., sizes of the
+        feature maps decrease after each convolution. It will perfrom 4D
+        convolutions as long as ``length`` is greater than 1. As soon as
+        ``length`` is 1 due to a valid convolution, the time dimension will be
+        dropped and tensors with ``(b, c, z, y, x)`` will be use (and returned)
+        from there on.
+
+        Args:
+
+            in_channels:
+
+                The number of input channels.
+
+            num_fmaps:
+
+                The number of feature maps in the first layer. This is also the
+                number of output feature maps. Stored in the ``channels``
+                dimension.
+
+            fmap_inc_factor:
+
+                By how much to multiply the number of feature maps between
+                layers. If layer 0 has ``k`` feature maps, layer ``l`` will
+                have ``k*fmap_inc_factor**l``.
+
+            downsample_factors:
+
+                List of tuples ``(z, y, x)`` to use to down- and up-sample the
+                feature maps between layers.
+
+            kernel_size_down (optional):
+
+                List of lists of kernel sizes. The number of sizes in a list
+                determines the number of convolutional layers in the
+                corresponding level of the build on the left side. Kernel sizes
+                can be given as tuples or integer. If not given, each
+                convolutional pass will consist of two 3x3x3 convolutions.
+
+            kernel_size_up (optional):
+
+                List of lists of kernel sizes. The number of sizes in a list
+                determines the number of convolutional layers in the
+                corresponding level of the build on the right side. Within one
+                of the lists going from left to right. Kernel sizes can be
+                given as tuples or integer. If not given, each convolutional
+                pass will consist of two 3x3x3 convolutions.
+
+            activation:
+
+                Which activation to use after a convolution. Accepts the name
+                of any tensorflow activation function (e.g., ``ReLU`` for
+                ``torch.nn.ReLU``).
+
+            fov (optional):
+
+                Initial field of view in physical units
+
+            voxel_size (optional):
+
+                Size of a voxel in the input data, in physical units
+
+            num_heads (optional):
+
+                Number of decoders. The resulting U-Net has one single encoder
+                path and num_heads decoder paths. This is useful in a
+                multi-task learning context.
+
+            constant_upsample (optional):
+
+                If set to true, perform a constant upsampling instead of a
+                transposed convolution in the upsampling layers.
+
+            padding (optional):
+
+                How to pad convolutions. Either 'same' or 'valid' (default).
         """
 
-        super().__init__()
-        if padding not in ("valid", "same"):
-            msg = f"Invalid string value for padding: {padding=}. Options are same or valid."
-            raise ValueError(msg)
-        if ndim not in (2, 3):
-            msg = f"Invalid number of dimensions: {ndim=}. Options are 2 or 3."
-            raise ValueError(msg)
-        self.depth = depth
+        super(UNet, self).__init__()
+
+        self.num_levels = len(downsample_factors) + 1
+        self.num_heads = num_heads
         self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.final_activation = final_activation
-        self.num_fmaps = num_fmaps
-        self.fmap_inc_factor = fmap_inc_factor
-        self.downsample_factor = downsample_factor
-        self.kernel_size = kernel_size
-        self.padding = padding
-        self.upsample_mode = upsample_mode
+        self.out_channels = num_fmaps_out if num_fmaps_out else num_fmaps
+        self.ndims = ndims
+        self.activation = activation
+
+        # default arguments
+
+        if kernel_size_down is None:
+            kernel_size_down = [[(3, 3, 3), (3, 3, 3)]] * self.num_levels
+        if kernel_size_up is None:
+            kernel_size_up = [[(3, 3, 3), (3, 3, 3)]] * (self.num_levels - 1)
+
+        # compute crop factors for translation equivariance
+        crop_factors = []
+        factor_product = None
+        for factor in downsample_factors[::-1]:
+            if factor_product is None:
+                factor_product = list(factor)
+            else:
+                factor_product = list(f * ff for f, ff in zip(factor, factor_product))
+            crop_factors.append(factor_product)
+        crop_factors = crop_factors[::-1]
+
+        # modules
 
         # left convolutional passes
-        self.left_convs = torch.nn.ModuleList()
-        for level in range(self.depth):
-            fmaps_in, fmaps_out = self.compute_fmaps_encoder(level)
-            self.left_convs.append(
-                ConvBlock(
-                    fmaps_in, fmaps_out, self.kernel_size, self.padding, ndim=ndim
+        self.l_conv = nn.ModuleList(
+            [
+                ConvPass(
+                    (
+                        in_channels
+                        if level == 0
+                        else num_fmaps * fmap_inc_factor ** (level - 1)
+                    ),
+                    num_fmaps * fmap_inc_factor**level,
+                    kernel_size_down[level],
+                    activation=activation,
+                    padding=padding,
                 )
-            )
+                for level in range(self.num_levels)
+            ]
+        )
+        self.dims = self.l_conv[0].dims
+
+        # left downsample layers
+        self.l_down = nn.ModuleList(
+            [
+                Downsample(downsample_factors[level])
+                for level in range(self.num_levels - 1)
+            ]
+        )
+
+        # right up/crop/concatenate layers
+        self.r_up = nn.ModuleList(
+            [
+                nn.ModuleList(
+                    [
+                        Upsample(
+                            downsample_factors[level],
+                            mode=(
+                                "trilinear" if constant_upsample else "transposed_conv"
+                            ),
+                            in_channels=num_fmaps * fmap_inc_factor ** (level + 1),
+                            out_channels=num_fmaps * fmap_inc_factor ** (level + 1),
+                            crop_factor=crop_factors[level],
+                            next_conv_kernel_sizes=kernel_size_up[level],
+                            padding=padding,
+                        )
+                        for level in range(self.num_levels - 1)
+                    ]
+                )
+                for _ in range(num_heads)
+            ]
+        )
 
         # right convolutional passes
-        self.right_convs = torch.nn.ModuleList()
-        for level in range(self.depth - 1):
-            fmaps_in, fmaps_out = self.compute_fmaps_decoder(level)
-            self.right_convs.append(
-                ConvBlock(
-                    fmaps_in,
-                    fmaps_out,
-                    self.kernel_size,
-                    self.padding,
-                    ndim=ndim,
+        self.r_conv = nn.ModuleList(
+            [
+                nn.ModuleList(
+                    [
+                        ConvPass(
+                            num_fmaps * fmap_inc_factor**level
+                            + num_fmaps * fmap_inc_factor ** (level + 1),
+                            (
+                                num_fmaps * fmap_inc_factor**level
+                                if num_fmaps_out is None or level != 0
+                                else num_fmaps_out
+                            ),
+                            kernel_size_up[level],
+                            activation=activation,
+                            padding=padding,
+                        )
+                        for level in range(self.num_levels - 1)
+                    ]
                 )
+                for _ in range(num_heads)
+            ]
+        )
+
+        self.affs_head = ConvPass(
+            in_channels = num_fmaps, 
+            out_channels = self.ndims, 
+            kernel_sizes = [[1, 1, 1]], 
+            activation = final_activation
             )
 
-        self.downsample = Downsample(self.downsample_factor, ndim=ndim)
-        self.upsample = torch.nn.Upsample(
-            scale_factor=self.downsample_factor,
-            mode=self.upsample_mode,
-        )
-        self.crop_and_concat = CropAndConcat()
-        self.final_conv = OutputConv(
-            self.compute_fmaps_decoder(0)[1],
-            self.out_channels,
-            self.final_activation,
-            ndim=ndim,
-        )
+    def rec_forward(self, level, f_in):
 
-    def compute_fmaps_encoder(self, level: int) -> Tuple[int, int]:
-        """Compute the number of input and output feature maps for
-        a conv block at a given level of the UNet encoder (left side).
+        # index of level in layer arrays
+        i = self.num_levels - level - 1
 
-        Args:
-        ----
-            level (int): The level of the U-Net which we are computing
-            the feature maps for. Level 0 is the input level, level 1 is
-            the first downsampled layer, and level=depth - 1 is the bottom layer.
+        # convolve
+        f_left = self.l_conv[i](f_in)
 
-        Output (tuple[int, int]): The number of input and output feature maps
-            of the encoder convolutional pass in the given level.
-        """
-        if level == 0:  # Leave out function
-            fmaps_in = self.in_channels
+        # end of recursion
+        if level == 0:
+
+            fs_out = [f_left] * self.num_heads
+
         else:
-            fmaps_in = self.num_fmaps * self.fmap_inc_factor ** (level - 1)
 
-        fmaps_out = self.num_fmaps * self.fmap_inc_factor**level
-        return fmaps_in, fmaps_out
+            # down
+            g_in = self.l_down[i](f_left)
 
-    def compute_fmaps_decoder(self, level: int) -> Tuple[int, int]:
-        """Compute the number of input and output feature maps for a conv block
-        at a given level of the UNet decoder (right side). Note:
-        The bottom layer (depth - 1) is considered an "encoder" conv pass,
-        so this function is only valid up to depth - 2.
+            # nested levels
+            gs_out = self.rec_forward(level - 1, g_in)
 
-        Args:
-        ----
-            level (int): The level of the U-Net which we are computing
-            the feature maps for. Level 0 is the input level, level 1 is
-            the first downsampled layer, and level=depth - 1 is the bottom layer.
+            # up, concat, and crop
+            fs_right = [
+                self.r_up[h][i](f_left, gs_out[h]) for h in range(self.num_heads)
+            ]
 
-        Output (tuple[int, int]): The number of input and output feature maps
-            of the encoder convolutional pass in the given level.
-        """
-        fmaps_out = self.num_fmaps * self.fmap_inc_factor ** (
-            level
-        )  # Leave out function
-        concat_fmaps = self.compute_fmaps_encoder(level)[
-            1
-        ]  # The channels that come from the skip connection
-        fmaps_in = concat_fmaps + self.num_fmaps * self.fmap_inc_factor ** (level + 1)
+            # convolve
+            fs_out = [self.r_conv[h][i](fs_right[h]) for h in range(self.num_heads)]
 
-        return fmaps_in, fmaps_out
+        return fs_out
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # left side
-        convolution_outputs = []
-        layer_input = x
-        for i in range(self.depth - 1):  # leave out center of for loop
-            conv_out = self.left_convs[i](layer_input)
-            convolution_outputs.append(conv_out)
-            downsampled = self.downsample(conv_out)
-            layer_input = downsampled
+    def forward(self, x):
 
-        # bottom
-        conv_out = self.left_convs[-1](layer_input)
-        layer_input = conv_out
-        # right
-        for i in range(0, self.depth - 1)[::-1]:  # leave out center of for loop
-            upsampled = self.upsample(layer_input)
-            concat = self.crop_and_concat(convolution_outputs[i], upsampled)
-            conv_output = self.right_convs[i](concat)
-            layer_input = conv_output
-        if self.padding == "valid":
-            lowest_res = self.downsample_factor ** (self.depth - 1)
-            valid_shape = [dim - dim % lowest_res for dim in layer_input.size()[2:]]
-            layer_input = center_crop(layer_input, valid_shape)
-            output: torch.Tensor = self.final_conv(layer_input)
+        y = self.rec_forward(self.num_levels - 1, x)
+
+        if self.num_heads == 1:
+            #return y[0] # returning single element inside list
+            y = self.affs_head(y[0])
+            return y
+        
         else:
-            output: torch.Tensor = self.final_conv(layer_input)
-        return output
+            raise ValueError("You need to work on the implemention to have more than one final layer!)") 

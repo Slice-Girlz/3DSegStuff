@@ -38,7 +38,8 @@ def train(
    wandb_project = "3DSegStuff",
    wandb_run_name = None,
    log_every = 1,
-   unet_config = None
+   unet_config = None,
+   boundary = 1,
 ):
    """
 
@@ -127,7 +128,6 @@ def train(
          for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
       ]
    
-   print(f'Samples: {samples}')
    # assuming same vs
    voxel_size = open_ds(samples[0]["raw"]).voxel_size # World coordinates: voxel coordinate * voxel_size = physical unit
    # voxel_size should be integers
@@ -159,7 +159,7 @@ def train(
       + gp.Pad(raw, output_size//2)         # Set this appropriately
       + gp.Pad(labels, output_size//2)      # Set this appropriately
       + gp.Pad(unlabelled, output_size//2)      # Set this appropriately
-      + gp.RandomLocation(mask=unlabelled)         # Pick a random patch in that source
+      + gp.RandomLocation(mask=unlabelled, min_masked=0.001)         # Pick a random patch in that source
       for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
 
    # Prepare augmentations: tune these to make them likely microscope images for your case!
@@ -183,7 +183,7 @@ def train(
    poisson_noise_augment = gp.NoiseAugment(raw, mode='poisson', p=prob_augment, clip=True)
    #smooth_augment = SmoothAugment(raw, p=prob_augment)
 
-   grow_boundary = gp.GrowBoundary(labels, mask=unlabelled)
+   grow_boundary = gp.GrowBoundary(labels, mask=unlabelled, steps=boundary, only_xy=True)
 
    # Prepare affinities
    affinities = gp.AddAffinities(
