@@ -77,7 +77,6 @@ def preprocess_noLabel(
 # ==========================
 def check_dtype(
     input_array: np.ndarray,
-
     allowed_dtypes: list
 ):
 
@@ -113,7 +112,7 @@ def check_dtype(
             f"but got {input_dtype}."
         )
 
-    # if input_array.shape != label_array.shape:
+    # if input_array.shape[-3:] != label_array.shape[-3:]:
     #     raise ValueError(
     #         f"image_array and label_array must have the same shape.\n"
     #         f"image_array shape: {input_array.shape}\n"
@@ -128,7 +127,7 @@ def check_dshape(
     label_array = np.asarray(label_array)
 
     # Check same shape
-    if image_array.shape != label_array.shape:
+    if image_array.shape[-3:] != label_array.shape[-3:]:
         raise ValueError(
             f"image_array and label_array must have the same shape.\n"
             f"image_array shape: {image_array.shape}\n"

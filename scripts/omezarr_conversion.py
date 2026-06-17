@@ -55,6 +55,22 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--voxel_size",
+        nargs=3,
+        type=int,
+        default=None,
+        help="Voxel size (Z, Y, X) to stamp on the output, overriding any file "
+        "metadata and the (100, 100, 100) default in metadata.py.",
+    )
+    parser.add_argument(
+        "--unit",
+        type=str,
+        default=None,
+        help="Physical unit for the voxel size, overriding the 'nm' default in "
+        "metadata.py.",
+    )
+
+    parser.add_argument(
         "--make_sparse_mask",
         type=bool,
         required=False,
@@ -116,7 +132,9 @@ def main() -> None:
             image_axes="czyx",
             label_axes="czyx",
             image_metadata=image_meta,
-            make_sparse_mask = args.make_sparse_mask
+            make_sparse_mask = args.make_sparse_mask,
+            voxel_size=args.voxel_size,
+            unit=args.unit,
         )
         print(f"Wrote {save_path.name}  image={image.shape}  label={mask.shape}  dtype={mask.dtype}")
 

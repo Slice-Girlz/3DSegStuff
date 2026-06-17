@@ -154,7 +154,9 @@ def save_to_zarr(
     label_axes="czyx",
     label_name="labels",
     image_metadata=None,
-    make_sparse_mask=False
+    make_sparse_mask=False,
+    voxel_size=None,  # explicit (z, y, x), overrides metadata/defaults
+    unit=None,        # explicit physical unit, overrides default
 ):
     """
     Write a single volume to its own OME-Zarr store at the store root.
@@ -205,24 +207,26 @@ def save_to_zarr(
 
         sparse_mask = (label>0).astype(np.uint8) # return a boolean numpy array
 
-        write_labels(
-            labels=sparse_mask,
-            group=root,
-            name='sparse_label_masks',  # appears under labels/'sparse_label_masks'
-            axes=label_axes,
-            storage_options={"chunks": label_chunks},
-            scaler=None,
-        )
+    else: 
+        sparse_mask = np.ones_like(label).astype(np.uint8)
+
+    write_labels(
+        labels=sparse_mask,
+        group=root,
+        name='sparse_label_masks',  # appears under labels/'sparse_label_masks'
+        axes=label_axes,
+        storage_options={"chunks": label_chunks},
+        scaler=None,
+    )
 
 
     # Stamp funlib-style metadata onto the image and label arrays (level 0). The
     # data lives at "0" (image multiscale) and "labels/<name>/0" (label multiscale).
-    funlib_metadata = prepare_metadata(image_metadata)
+    funlib_metadata = prepare_metadata(image_metadata, voxel_size=voxel_size, unit=unit)
     funlib_metadata["resolution"] = funlib_metadata["voxel_size"]  # gunpowder reads `resolution`
     root["0"].attrs.update(funlib_metadata)
     root[f"labels/{label_name}/0"].attrs.update(funlib_metadata)
-    if make_sparse_mask:
-        root["labels/sparse_label_masks/0"].attrs.update(funlib_metadata)
+    root["labels/sparse_label_masks/0"].attrs.update(funlib_metadata)
 
 
 

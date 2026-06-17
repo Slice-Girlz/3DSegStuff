@@ -28,18 +28,21 @@ DEFAULT_AXIS_NAMES = ("c^", "z", "y", "x")
 DEFAULT_TYPES = ("channel", "space", "space", "space")
 
 
-def prepare_metadata(native_metadata=None) -> dict:
+def prepare_metadata(native_metadata=None, voxel_size=None, unit=None) -> dict:
     """Build the funlib metadata dict for one (C, Z, Y, X) volume.
 
-    Reads the voxel size from `native_metadata` when we recognise the format;
-    anything missing falls back to the module defaults. Voxel sizes are always in
-    nanometres, so the units never change.
+    An explicit `voxel_size` (z, y, x) and/or `unit` take priority over everything.
+    Otherwise the voxel size is read from `native_metadata` when we recognise the
+    format, and anything still missing falls back to the module defaults.
     """
-    derived = _derive_funlib_from_metadata(native_metadata)
+    if voxel_size is None:
+        derived = _derive_funlib_from_metadata(native_metadata)
+        voxel_size = derived.get("voxel_size", DEFAULT_VOXEL_SIZE)
+    units = (unit, unit, unit) if unit is not None else DEFAULT_UNITS
     return {
-        "voxel_size": list(derived.get("voxel_size", DEFAULT_VOXEL_SIZE)),
+        "voxel_size": list(voxel_size),
         "offset": list(DEFAULT_OFFSET),
-        "units": list(DEFAULT_UNITS),
+        "units": list(units),
         "axis_names": list(DEFAULT_AXIS_NAMES),
         "types": list(DEFAULT_TYPES),
     }
