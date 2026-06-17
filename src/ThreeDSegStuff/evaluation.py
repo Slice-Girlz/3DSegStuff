@@ -69,6 +69,21 @@ def load_zarr_array(path):
     return np.asarray(root[dataset_path])
 
 
+def squeeze_singleton_axes_to_match(label, pred_label):
+    """Remove leading singleton axes when one label volume has extra channel/time dims."""
+
+    label = np.asarray(label)
+    pred_label = np.asarray(pred_label)
+
+    while label.ndim > pred_label.ndim and label.shape[0] == 1:
+        label = np.squeeze(label, axis=0)
+
+    while pred_label.ndim > label.ndim and pred_label.shape[0] == 1:
+        pred_label = np.squeeze(pred_label, axis=0)
+
+    return label, pred_label
+
+
 def compute_iou(label, pred_label):
     """
     Compute foreground IoU and pairwise instance IoU.
@@ -86,8 +101,7 @@ def compute_iou(label, pred_label):
         IoU results.
     """
 
-    label = np.asarray(label)
-    pred_label = np.asarray(pred_label)
+    label, pred_label = squeeze_singleton_axes_to_match(label, pred_label)
 
     if label.shape != pred_label.shape:
         raise ValueError(
@@ -106,25 +120,35 @@ def compute_iou(label, pred_label):
         else 0.0
     )
 
-    gt_ids = np.unique(label)
-    pred_ids = np.unique(pred_label)
+    gt_ids_all, gt_counts_all = np.unique(label, return_counts=True)
+    pred_ids_all, pred_counts_all = np.unique(pred_label, return_counts=True)
 
-    gt_ids = gt_ids[gt_ids != 0]
-    pred_ids = pred_ids[pred_ids != 0]
+    gt_keep = gt_ids_all != 0
+    pred_keep = pred_ids_all != 0
+    gt_ids = gt_ids_all[gt_keep]
+    pred_ids = pred_ids_all[pred_keep]
+    gt_counts = gt_counts_all[gt_keep]
+    pred_counts = pred_counts_all[pred_keep]
 
     iou_matrix = np.zeros((len(gt_ids), len(pred_ids)), dtype=float)
 
-    for i, gt_id in enumerate(gt_ids):
-        gt_mask = label == gt_id
+    if len(gt_ids) > 0 and len(pred_ids) > 0:
+        overlap_mask = np.logical_and(label.ravel() != 0, pred_label.ravel() != 0)
 
-        for j, pred_id in enumerate(pred_ids):
-            pred_mask = pred_label == pred_id
+        if np.any(overlap_mask):
+            gt_overlap = label.ravel()[overlap_mask]
+            pred_overlap = pred_label.ravel()[overlap_mask]
 
-            intersection = np.logical_and(gt_mask, pred_mask).sum()
-            union = np.logical_or(gt_mask, pred_mask).sum()
+            gt_indices = np.searchsorted(gt_ids, gt_overlap)
+            pred_indices = np.searchsorted(pred_ids, pred_overlap)
+            joint_keys = gt_indices.astype(np.int64) * len(pred_ids) + pred_indices
 
-            if union > 0:
-                iou_matrix[i, j] = intersection / union
+            joint_keys, intersections = np.unique(joint_keys, return_counts=True)
+            gt_indices = joint_keys // len(pred_ids)
+            pred_indices = joint_keys % len(pred_ids)
+
+            unions = gt_counts[gt_indices] + pred_counts[pred_indices] - intersections
+            iou_matrix[gt_indices, pred_indices] = intersections / unions
 
     return {
         "foreground_iou": float(foreground_iou),
@@ -149,6 +173,13 @@ def compute_voi(label, pred_label):
         voi_merge  = H(gt | pred)   penalizes merging several GT objects into one
         voi        = voi_split + voi_merge   (lower is better, 0 = perfect)
     """
+
+    label, pred_label = squeeze_singleton_axes_to_match(label, pred_label)
+
+    if label.shape != pred_label.shape:
+        raise ValueError(
+            f"label and pred_label must have the same shape. Got {label.shape} and {pred_label.shape}."
+        )
 
     a = np.asarray(label).ravel()
     b = np.asarray(pred_label).ravel()
