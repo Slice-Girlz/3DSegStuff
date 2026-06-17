@@ -1,17 +1,11 @@
-# IMPORTS 
-# import numpy as np
-# import torch
-
-# import gunpowder as gp
-
-# from torch.utils.data import DataLoader
-# from torchvision.transforms import v2 as transforms_v2
-# from skimage.morphology import remove_small_objects
+from pathlib import Path
 
 import mwatershed as mws
 import numpy as np
 import zarr
-from blah.blah import write_labels
+from ome_zarr.writer import write_labels
+from ome_zarr.writer import write_image
+
 
 # ====== Load an OME-Zarr file ======
 pred_affs = "/mnt/efs/dl_jrc/student_data/S-JM/train/processed_zarr/2026-06-16_20-31-33/snapshots/batch_1.zarr/pred_affs"
@@ -38,5 +32,15 @@ biased_affs = np.array(
     ).astype(np.float64)
 
 pred_labels = mws.agglom(biased_affs, neighborhood)
+print(pred_labels.shape)
 
 # Save instance segmentations into the OME-Zarr file
+root = zarr.open_group(str(Path(pred_affs).parent), mode="r+")
+pred_labels_group = root.require_group("pred_labels")
+
+write_image(
+    image=pred_labels,
+    group=pred_labels_group,
+    axes=["z", "y", "x"],
+    scaler=None,
+)

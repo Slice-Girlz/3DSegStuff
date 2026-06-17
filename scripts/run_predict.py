@@ -45,9 +45,9 @@ model = UNet(
 
 predict(
     model,
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-YC/data_train_omezarr/260519_fish1_1zstack.ome.zarr/0',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-YC/model_pred/260519_fish1_1zstack.ome.zarr/pred_affs',
-    config_file_path = '/home/S-YC/3DSegStuff/scripts/config_files/config_unet.json',
+    input_dir = "/mnt/efs/dl_jrc/student_data/S-JM/train/new_ome_zarr_SDT/2026_05_18_JMS_36A_TileScan_1_A1_R_3_Merged_Colony_0002_rf_preprocessed_uint8.ome.zarr/0",
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-JM/train/processed_zarr/test1.ome.zarr/pred_affs',
+    config_file_path = 'scripts/config_files/config_unet.json',
     checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/2026-06-16_20-34-18/model_checkpoint_100',
     neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], #should be same neighborhood as train
     input_shape = (1, 16, 64, 64), # should be same input_shape as train
