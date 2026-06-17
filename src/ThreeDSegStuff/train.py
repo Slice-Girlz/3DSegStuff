@@ -220,6 +220,7 @@ def train(
 
    # Prepare batch 
    stack = gp.Stack(batch_size)
+   cache = gp.PreCache()
 
    # Prepare snapshot = save the requests
    snapshot = gp.Snapshot(
