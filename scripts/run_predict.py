@@ -8,39 +8,75 @@ import json
 # Load model parameters
 setup_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))# I copied this line from Vijay's script, idk how it works, will check alter. 
 
+
 config_path = os.path.join(setup_dir, "config_files/config_unet.json")
 with open(config_path) as f:
     unet_config = json.load(f)
 
-depth = unet_config["depth"]
 in_channels = unet_config["in_channels"]
-out_channels = unet_config["out_channels"]
-final_activation = eval(unet_config["final_activation"])
 num_fmaps = unet_config["num_fmaps"]
 fmap_inc_factor = unet_config["fmap_inc_factor"]
+downsample_factors = eval(
+    repr(unet_config["downsample_factors"]).replace("[", "(").replace("]", ")")
+)
+kernel_size_down = eval(
+    repr(unet_config["kernel_size_down"]).replace("[", "(").replace("]", ")")
+)
+kernel_size_up = eval(
+    repr(unet_config["kernel_size_up"]).replace("[", "(").replace("]", ")")
+)
+activation = unet_config["activation"]
+final_activation = unet_config["final_activation"]
 
+ndims = unet_config["outputs"]["3d_affs"]["dims"]
 padding = unet_config["padding"]
-upsample_mode = unet_config["upsample_mode"]
-ndim = unet_config["ndim"]
+constant_upsample = unet_config["constant_upsample"]
+neighborhood = unet_config["outputs"]["3d_affs"]["neighborhood"]
+boundary = unet_config["outputs"]["3d_affs"]["grow_boundary"]
 
-kernel_size = unet_config["kernel_size"]
-downsample_factor = unet_config["downsample_factor"]
+ 
+input_dir = unet_config['input_dir']
+output_dir = unet_config['output_dir']
+n_training_steps = unet_config['n_training_steps']
+
+input_shapes = unet_config['input_shape'] #watch out that the global variable is plural but inside the json and fxn the arg is singular
+output_shapes = unet_config['output_shape'] #watch out that the global variable is plural but inside the json and fxn the arg is singular
+batch_size = unet_config['batch_size']
+prob_augment = unet_config['prob_augment']
+var_noise = unet_config['var_noise']
+save_checkpoints_every = unet_config['save_checkpoints_every']
+save_snapshots_every = unet_config['save_snapshots_every']
+sparse_mask = eval(unet_config['sparse_mask'])
+radius = unet_config['radius']
+rotate_aug = eval(unet_config['rotate_aug'])
+log_wandb = eval(unet_config['log_wandb'])
+wandb_project = unet_config['wandb_project']
+lr = float(unet_config['learning_rate'])
+
+# if wandb_project is not None:
+#     wandb_project == eval(wandb_project)
+# else: 
+#     pass
+#currently expecting wandb_project to pass in None. 
+# if you pass in a string instead, it will just pass so it stays a string. 
+
+wandb_run_name = unet_config['wandb_run_name']
+log_every = unet_config['log_every']
+
 
 #initialize the Unet with the correct parameters, from the config file. 
 model = UNet(
-    depth = depth, 
-    in_channels=in_channels, 
-    out_channels = out_channels, 
-    final_activation=final_activation, 
-    num_fmaps = num_fmaps, 
+    in_channels=in_channels,
+    num_fmaps=num_fmaps,
     fmap_inc_factor=fmap_inc_factor,
-
-    padding = padding,
-    upsample_mode= upsample_mode,
-    ndim = ndim,
-
-    kernel_size = kernel_size, 
-    downsample_factor = downsample_factor
+    ndims=ndims,
+    downsample_factors=downsample_factors,
+    kernel_size_down=kernel_size_down,
+    kernel_size_up=kernel_size_up,
+    activation=activation,
+    constant_upsample=constant_upsample,
+    padding=padding,
+    final_activation=final_activation
 )
 
 predict(
