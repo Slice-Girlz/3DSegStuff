@@ -3,20 +3,13 @@ from pathlib import Path
 import mwatershed as mws
 import numpy as np
 import zarr
-from ome_zarr.writer import write_labels
-from ome_zarr.writer import write_image
 
+from ome_zarr.writer import write_image
+from skimage.morphology import remove_small_objects
 
 # ====== Load an OME-Zarr file ======
-pred_affs = "/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/omezarr_split/val/norm_1.ome.zarr/pred_affs"
-affs_array = zarr.open(pred_affs)
-print(affs_array.shape)
-
-if affs_array.ndim != 4 or affs_array.shape[0] != 3:
-    raise ValueError(
-        "Expected pred_affs to have shape (3, z, y, x), got "
-        f"{affs_array.shape}. Do not index channel 0 before agglomeration."
-    )
+pred_affs = "/mnt/efs/dl_jrc/student_data/S-JM/train/processed_zarr/2026-06-17_02-29-36/snapshots/batch_9001.zarr/gt_affs"
+affs_array = zarr.open(pred_affs) # Check if you have channel dim
 
 # ====== Generate Instance Segmentations ====== 
 # Set of offsets
@@ -24,10 +17,10 @@ neighborhood = np.array([
     [-1, 0, 0],
     [0, -1, 0],
     [0, 0, -1],
-], dtype=np.int64)
+], dtype=np.uint64)
 
 # Set mutex watershed biases
-bias_short = -0.9
+bias_short = -0.1 # Originally at -0.9
 
 # Generate instance segmentation from affinities
 biased_affs = np.array(
@@ -39,15 +32,19 @@ biased_affs = np.array(
     ).astype(np.float64)
 
 pred_labels = mws.agglom(biased_affs, neighborhood)
-print(pred_labels.shape)
 
-# Save instance segmentations into the OME-Zarr file
+# Filter out small objects
+pred_labels = remove_small_objects(
+    pred_labels.astype(np.uint64), min_size=20, connectivity=3
+)
+
+# ====== Save instance segmentations into the OME-Zarr file ======
 root = zarr.open_group(str(Path(pred_affs).parent), mode="r+")
 pred_labels_group = root.require_group("pred_labels")
 
 write_image(
     image=pred_labels,
     group=pred_labels_group,
-    axes=["z", "y", "x"],
+    axes=["z", "y", "x"], # Check if you have channel dim
     scaler=None,
 )
