@@ -19,7 +19,7 @@ Metrics:
     - variation of information (VOI): voi_split, voi_merge, voi
 
 Usage:
-    python evaluation.py --label Cell6.ome.zarr/labels/labels/0 --pred-label prediction.ome.zarr/pred_labels --out --out ./cell6_t1000.json
+    python evaluation.py --label Cell6.ome.zarr/labels/labels/0 --pred-label prediction.ome.zarr/pred_labels --out ./cell6_t1000.json
 
     Required:
         --label        ground-truth labels inside the .ome.zarr / .zarr store (you define this)
