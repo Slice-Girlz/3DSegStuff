@@ -8,10 +8,11 @@ import json
 
 # Read in parameters from a config file. 
 # Load model parameters
+# Load model parameters
 setup_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))# I copied this line from Vijay's script, idk how it works, will check alter. 
 
 
-config_path = os.path.join(setup_dir, "config_files/config_unet.json")
+config_path = os.path.join(setup_dir, "config_files/config_unet_XZ.json")
 with open(config_path) as f:
     unet_config = json.load(f)
 

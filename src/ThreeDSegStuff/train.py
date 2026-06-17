@@ -32,7 +32,7 @@ def train(
    neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
    save_snapshots_every = 1,
    save_checkpoints_every = 5,
-   sparse_mask = False,
+   sparse_mask = True,
    rotate_aug = True,
    log_wandb = False,
    wandb_project = "3DSegStuff",
@@ -116,7 +116,7 @@ def train(
       samples = [
          {"raw": os.path.join(f, "0"), 
          "labels": os.path.join(f, "labels/labels/0"),
-         "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
+         "unlabelled": os.path.join(f, "labels/sparse_label_masks_dilated_r10/0"),
          } 
          for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
       ]  
@@ -129,7 +129,9 @@ def train(
       ]
    
    # assuming same vs
-   voxel_size = open_ds(samples[0]["raw"]).voxel_size # World coordinates: voxel coordinate * voxel_size = physical unit
+   voxel_size = open_ds(samples[0]["raw"]).voxel_size
+   
+    # World coordinates: voxel coordinate * voxel_size = physical unit
    # voxel_size should be integers
 
    # Prepare size of requests

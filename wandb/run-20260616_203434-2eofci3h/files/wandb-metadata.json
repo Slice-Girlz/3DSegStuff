@@ -1,0 +1,40 @@
+{
+  "os": "Linux-6.17.0-1015-aws-x86_64-with-glibc2.39",
+  "python": "CPython 3.11.15",
+  "startedAt": "2026-06-16T20:34:34.663601Z",
+  "program": "/home/S-XZ/3DSegStuff/scripts/run_training.py",
+  "codePath": "scripts/run_training.py",
+  "codePathLocal": "scripts/run_training.py",
+  "git": {
+    "remote": "git@github.com:Slice-Girlz/3DSegStuff.git",
+    "commit": "36c2c7a27637e240f91a5d486bf8f5ab26b2658a"
+  },
+  "email": "xinyuantx@gmail.com",
+  "root": "/home/S-XZ/3DSegStuff",
+  "host": "ip-172-31-40-179",
+  "executable": "/home/S-XZ/conda/envs/3d_seg_env/bin/python",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "gpu": "Tesla T4",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "518933680128",
+      "used": "320468176896"
+    }
+  },
+  "memory": {
+    "total": "33260806144"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "Tesla T4",
+      "memoryTotal": "16106127360",
+      "cudaCores": 2560,
+      "architecture": "Turing",
+      "uuid": "GPU-758792e3-718a-633c-87d4-9a8bd21fce4c"
+    }
+  ],
+  "cudaVersion": "13.2",
+  "writerId": "rcdwuhc9w9g64ki47expc9r0jwdpbrjm"
+}

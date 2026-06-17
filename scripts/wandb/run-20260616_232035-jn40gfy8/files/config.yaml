@@ -1,0 +1,103 @@
+_wandb:
+    value:
+        cli_version: 0.27.2
+        e:
+            4w36lx7z95eoplw41uvt4cwhb9zjp70j:
+                codePath: scripts/run_training.py
+                codePathLocal: run_training.py
+                cpu_count: 4
+                cpu_count_logical: 8
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "518933680128"
+                        used: "320458956800"
+                email: xinyuantx@gmail.com
+                executable: /home/S-XZ/conda/envs/3d_seg_env/bin/python
+                git:
+                    commit: bc0f8968b47c947e9ea5a048eaf7d8d040e7ac09
+                    remote: git@github.com:Slice-Girlz/3DSegStuff.git
+                gpu: Tesla T4
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Turing
+                      cudaCores: 2560
+                      memoryTotal: "16106127360"
+                      name: Tesla T4
+                      uuid: GPU-758792e3-718a-633c-87d4-9a8bd21fce4c
+                host: ip-172-31-40-179
+                memory:
+                    total: "33260802048"
+                os: Linux-6.17.0-1015-aws-x86_64-with-glibc2.39
+                program: /home/S-XZ/3DSegStuff/scripts/run_training.py
+                python: CPython 3.11.15
+                root: /home/S-XZ/3DSegStuff/scripts
+                startedAt: "2026-06-16T23:20:35.053596Z"
+                writerId: 4w36lx7z95eoplw41uvt4cwhb9zjp70j
+        m: []
+        python_version: 3.11.15
+        t:
+            "1":
+                - 1
+                - 54
+            "2":
+                - 1
+                - 54
+            "3":
+                - 16
+            "4": 3.11.15
+            "5": 0.27.2
+            "12": 0.27.2
+            "13": linux-x86_64
+batch_size:
+    value: 1
+input_shape:
+    value:
+        - 1
+        - 16
+        - 64
+        - 64
+loss:
+    value: weighted_MSELoss
+lr:
+    value: 0.0001
+n_training_steps:
+    value: 100
+neighborhood:
+    value:
+        - - 1
+          - 0
+          - 0
+        - - 0
+          - 1
+          - 0
+        - - 0
+          - 0
+          - 1
+optimizer:
+    value: Adam
+output_shape:
+    value:
+        - 1
+        - 16
+        - 64
+        - 64
+prob_augment:
+    value: 0.3
+sparse_mask:
+    value: true
+unet_config:
+    value:
+        depth: 2
+        downsample_factor: 2
+        final_activation: torch.nn.Sigmoid()
+        fmap_inc_factor: 5
+        in_channels: 1
+        kernel_size: 3
+        ndim: 3
+        num_fmaps: 12
+        out_channels: 3
+        padding: valid
+        upsample_mode: nearest
+var_noise:
+    value: 0.0001

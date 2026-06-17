@@ -3,19 +3,20 @@ from ThreeDSegStuff.unet import UNet ### Place holder for loading the new unet
 import torch
 import os
 import json
+import torch.nn as nn
 
 # Read in parameters from a config file. 
 # Load model parameters
 setup_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))# I copied this line from Vijay's script, idk how it works, will check alter. 
 
-config_path = os.path.join(setup_dir, "config_files/config_unet.json")
+config_path = os.path.join(setup_dir, "config_files/config_unet_XZ.json")
 with open(config_path) as f:
     unet_config = json.load(f)
 
-depth = unet_config["depth"]
+# depth = unet_config["depth"]
 in_channels = unet_config["in_channels"]
-out_channels = unet_config["out_channels"]
-final_activation = eval(unet_config["final_activation"])
+# out_channels = unet_config["out_channels"]
+final_activation = getattr(nn, unet_config["final_activation"])()
 num_fmaps = unet_config["num_fmaps"]
 fmap_inc_factor = unet_config["fmap_inc_factor"]
 
@@ -45,11 +46,11 @@ model = UNet(
 
 predict(
     model,
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-YC/data_train_omezarr/260519_fish1_1zstack.ome.zarr/0',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-YC/model_pred/260519_fish1_1zstack.ome.zarr/pred_affs',
+    input_dir = '/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/omezarr_split/val/norm_1.ome.zarr/0',
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/omezarr_split/val/norm_1.ome.zarr/pred_affs',
     config_file_path = '/home/S-YC/3DSegStuff/scripts/config_files/config_unet.json',
-    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/2026-06-16_20-34-18/model_checkpoint_100',
-    neighborhood = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], #should be same neighborhood as train
-    input_shape = (1, 16, 64, 64), # should be same input_shape as train
-    output_shape = (1, 16, 64, 64) # should be same output_shape as train
+    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/train_results_r6_rotate/2026-06-17_15-36-31/model_checkpoint_10000',
+    neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]], #should be same neighborhood as train
+    input_shape = (1, 64, 160, 160), # should be same input_shape as train
+    output_shape = (1, 44, 120, 120) # should be same output_shape as train
     )

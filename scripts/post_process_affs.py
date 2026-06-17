@@ -8,15 +8,22 @@ from ome_zarr.writer import write_image
 
 
 # ====== Load an OME-Zarr file ======
-pred_affs = "/mnt/efs/dl_jrc/student_data/S-JM/train/processed_zarr/2026-06-16_20-31-33/snapshots/batch_1.zarr/pred_affs"
-affs_array = zarr.open(pred_affs)[0]
+pred_affs = "/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/omezarr_split/val/norm_1.ome.zarr/pred_affs"
+affs_array = zarr.open(pred_affs)
+print(affs_array.shape)
+
+if affs_array.ndim != 4 or affs_array.shape[0] != 3:
+    raise ValueError(
+        "Expected pred_affs to have shape (3, z, y, x), got "
+        f"{affs_array.shape}. Do not index channel 0 before agglomeration."
+    )
 
 # ====== Generate Instance Segmentations ====== 
 # Set of offsets
 neighborhood = np.array([
-    [1, 0, 0],
-    [0, 1, 0],
-    [0, 0, 1],
+    [-1, 0, 0],
+    [0, -1, 0],
+    [0, 0, -1],
 ], dtype=np.int64)
 
 # Set mutex watershed biases

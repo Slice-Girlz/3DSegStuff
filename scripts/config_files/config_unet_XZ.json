@@ -1,0 +1,45 @@
+{
+    "in_channels": 1,
+    "num_fmaps": 16,
+    "fmap_inc_factor": 2,
+    "n_training_steps": 50000,
+    "downsample_factors": [[1, 2, 2], [1, 2, 2]],
+    "kernel_size_down": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]],
+    "kernel_size_up": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]],
+    "activation" : "ReLU",
+    "final_activation" : "Sigmoid",
+    "num_fmaps_out": "None",
+    "num_heads": 1,
+    "constant_upsample" : "True",
+    "padding":"valid",
+    "outputs": {
+        "3d_affs": {
+            "dtype": "uint8",
+            "dims": 3,
+            "neighborhood": [[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+            "grow_boundary": 1
+        }
+    },
+    "input_dir" : "/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/omezarr_split/train/",
+    "output_dir" : "/mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/train_results_r10_rotate/",
+    "config_path" : "3DSegStuff/scripts/config_files/config_unet.json", 
+    "input_shape" : [1, 64, 160, 160],
+    "output_shape" : [1, 44, 120, 120],
+    "batch_size" : 1,
+    "prob_augment" : 0.4, 
+    "var_noise" : 10e-4,
+    "save_snapshots_every" : 500,
+    "save_checkpoints_every" : 500,
+    "sparse_mask" : "True",
+    "rotate_aug" : "True",
+    "log_wandb" : "True",
+    "wandb_project" : "3DSegStuff",
+    "wandb_run_name" : "None",
+    "log_every" : 10,
+    "learning_rate": 1e-5
+}

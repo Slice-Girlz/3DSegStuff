@@ -1,0 +1,183 @@
+_wandb:
+    value:
+        cli_version: 0.27.2
+        e:
+            w4b669a8te9hg5e8thbsq6yfxzxq93ou:
+                codePath: scripts/run_training.py
+                codePathLocal: run_training.py
+                cpu_count: 4
+                cpu_count_logical: 8
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "518933680128"
+                        used: "320463532032"
+                email: xinyuantx@gmail.com
+                executable: /home/S-XZ/conda/envs/3d_seg_env/bin/python
+                git:
+                    commit: 20f605056d092f69b8851117f3c90c29e78f2b1c
+                    remote: git@github.com:Slice-Girlz/3DSegStuff.git
+                gpu: Tesla T4
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Turing
+                      cudaCores: 2560
+                      memoryTotal: "16106127360"
+                      name: Tesla T4
+                      uuid: GPU-758792e3-718a-633c-87d4-9a8bd21fce4c
+                host: ip-172-31-40-179
+                memory:
+                    total: "33260802048"
+                os: Linux-6.17.0-1015-aws-x86_64-with-glibc2.39
+                program: /home/S-XZ/3DSegStuff/scripts/run_training.py
+                python: CPython 3.11.15
+                root: /home/S-XZ/3DSegStuff/scripts
+                startedAt: "2026-06-17T01:29:47.766429Z"
+                writerId: w4b669a8te9hg5e8thbsq6yfxzxq93ou
+        m: []
+        python_version: 3.11.15
+        t:
+            "1":
+                - 1
+                - 54
+            "2":
+                - 1
+                - 54
+            "3":
+                - 13
+                - 16
+                - 61
+            "4": 3.11.15
+            "5": 0.27.2
+            "12": 0.27.2
+            "13": linux-x86_64
+batch_size:
+    value: 1
+input_shape:
+    value:
+        - 1
+        - 50
+        - 128
+        - 128
+loss:
+    value: weighted_MSELoss
+lr:
+    value: 1e-05
+n_training_steps:
+    value: 10000
+neighborhood:
+    value:
+        - - -1
+          - 0
+          - 0
+        - - 0
+          - -1
+          - 0
+        - - 0
+          - 0
+          - -1
+optimizer:
+    value: Adam
+output_shape:
+    value:
+        - 1
+        - 30
+        - 88
+        - 88
+prob_augment:
+    value: 0.3
+sparse_mask:
+    value: true
+unet_config:
+    value:
+        activation: ReLU
+        batch_size: 1
+        config_path: 3DSegStuff/scripts/config_files/config_unet.json
+        constant_upsample: "True"
+        downsample_factors:
+            - - 1
+              - 2
+              - 2
+            - - 1
+              - 2
+              - 2
+        final_activation: Sigmoid
+        fmap_inc_factor: 5
+        in_channels: 1
+        input_dir: /mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/omezarr_train/
+        input_shape:
+            - 1
+            - 50
+            - 128
+            - 128
+        kernel_size_down:
+            - - - 3
+                - 3
+                - 3
+              - - 3
+                - 3
+                - 3
+            - - - 3
+                - 3
+                - 3
+              - - 3
+                - 3
+                - 3
+            - - - 3
+                - 3
+                - 3
+              - - 3
+                - 3
+                - 3
+        kernel_size_up:
+            - - - 3
+                - 3
+                - 3
+              - - 3
+                - 3
+                - 3
+            - - - 3
+                - 3
+                - 3
+              - - 3
+                - 3
+                - 3
+        learning_rate: 1e-05
+        log_every: 1
+        log_wandb: "True"
+        n_training_steps: 10000
+        num_fmaps: 12
+        num_fmaps_out: None
+        num_heads: 1
+        output_dir: /mnt/efs/dl_jrc/student_data/S-XZ/train_janelia/train_save/
+        output_shape:
+            - 1
+            - 30
+            - 88
+            - 88
+        outputs:
+            3d_affs:
+                dims: 3
+                dtype: uint8
+                grow_boundary: 1
+                neighborhood:
+                    - - -1
+                      - 0
+                      - 0
+                    - - 0
+                      - -1
+                      - 0
+                    - - 0
+                      - 0
+                      - -1
+        padding: valid
+        prob_augment: 0.3
+        rotate_aug: "False"
+        save_checkpoints_every: 100
+        save_snapshots_every: 100
+        sparse_mask: "True"
+        var_noise: 0.0001
+        wandb_project: 3DSegStuff
+        wandb_run_name: None
+var_noise:
+    value: 0.0001
