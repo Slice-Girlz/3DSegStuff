@@ -14,13 +14,13 @@ affs_array = zarr.open(pred_affs)[0] # Check if you have channel dim
 # ====== Generate Instance Segmentations ====== 
 # Set of offsets
 neighborhood = np.array([
-    [1, 0, 0],
-    [0, 1, 0],
-    [0, 0, 1],
-], dtype=np.uint64)
+    [-1, 0, 0],
+    [0, -1, 0],
+    [0, 0, -1],
+], dtype=np.int64)
 
 # Set mutex watershed biases
-bias_short = -0.1 # Originally at -0.9
+bias_short = -0.8 # Originally at -0.9
 
 # Generate instance segmentation from affinities
 biased_affs = np.array(
@@ -35,7 +35,7 @@ pred_labels = mws.agglom(biased_affs, neighborhood)
 
 # Filter out small objects
 pred_labels = remove_small_objects(
-    pred_labels.astype(np.uint64), min_size=20, connectivity=3
+    pred_labels.astype(np.uint64), min_size=50, connectivity=3
 )
 
 # ====== Save instance segmentations into the OME-Zarr file ======
