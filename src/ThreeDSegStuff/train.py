@@ -40,6 +40,7 @@ def train(
    log_every = 1,
    unet_config = None,
    boundary = 1,
+   radius = 5,
 ):
    """
 
@@ -112,14 +113,38 @@ def train(
    optimizer = optimizer
    batch_size = batch_size
    
-   if sparse_mask==True:
+   # if sparse_mask==True:
+   #    samples = [
+   #       {"raw": os.path.join(f, "0"), 
+   #       "labels": os.path.join(f, "labels/labels/0"),
+   #       "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
+   #       } 
+   #       for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
+   #    ]  
+   # else:
+   #    samples = [
+   #       {"raw": os.path.join(f, "0"), 
+   #       "labels": os.path.join(f, "labels/labels/0")
+   #       } 
+   #       for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
+   #    ]
+
+   if sparse_mask==True and radius>1:
       samples = [
          {"raw": os.path.join(f, "0"), 
          "labels": os.path.join(f, "labels/labels/0"),
-         "unlabelled": os.path.join(f, "labels/sparse_label_masks/0"),
+         "unlabelled": os.path.join(f, f"labels/sparse_label_masks_dilated_{radius}/0"),
          } 
          for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
       ]  
+   elif sparse_mask==True and radius==1:
+      samples = [
+         {"raw": os.path.join(f, "0"), 
+         "labels": os.path.join(f, "labels/labels/0"),
+         "unlabelled": os.path.join(f, f"labels/sparse_label_masks/0"),
+         } 
+         for f in sorted(glob.glob(os.path.join(input_dir, "*ome.zarr")))
+      ]     
    else:
       samples = [
          {"raw": os.path.join(f, "0"), 
@@ -144,7 +169,6 @@ def train(
    request.add(affs_weights, output_size)
    request.add(pred_affs, output_size)
    request.add(unlabelled, output_size)
-   
    # Get samples and declare data source
    source = tuple(
       (
@@ -159,7 +183,7 @@ def train(
       + gp.Pad(raw, output_size//2)         # Set this appropriately
       + gp.Pad(labels, output_size//2)      # Set this appropriately
       + gp.Pad(unlabelled, output_size//2)      # Set this appropriately
-      + gp.RandomLocation(mask=unlabelled, min_masked=0.001)         # Pick a random patch in that source
+      + gp.RandomLocation(mask=unlabelled, min_masked=0.07)         # Pick a random patch in that source
       for sample in samples) + gp.RandomProvider() # Picks a random source (= ome-zarr) every time
 
    # Prepare augmentations: tune these to make them likely microscope images for your case!
@@ -252,8 +276,9 @@ def train(
       balance_labels +
       stack +
       train +
-      snapshot)
-
+      snapshot
+      # gp.PrintProfilingStats(every=10)
+   )
    ##########################################################
 
    # Build the pipeline

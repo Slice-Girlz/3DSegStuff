@@ -8,7 +8,7 @@ from ome_zarr.writer import write_image
 
 
 # ====== Load an OME-Zarr file ======
-pred_affs = "/mnt/efs/dl_jrc/student_data/S-JM/train/processed_zarr/2026-06-16_20-31-33/snapshots/batch_1.zarr/pred_affs"
+pred_affs = "/mnt/efs/dl_jrc/student_data/S-EC/diam300/model_outputs/2026-06-17_16-50-33/snapshots/batch_4001.zarr/pred_affs/"
 affs_array = zarr.open(pred_affs)[0]
 
 # ====== Generate Instance Segmentations ====== 
@@ -37,6 +37,7 @@ print(pred_labels.shape)
 # Save instance segmentations into the OME-Zarr file
 root = zarr.open_group(str(Path(pred_affs).parent), mode="r+")
 pred_labels_group = root.require_group("pred_labels")
+print("output dir: ", pred_labels_group)
 
 write_image(
     image=pred_labels,

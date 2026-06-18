@@ -53,6 +53,7 @@ rotate_aug = eval(unet_config['rotate_aug'])
 log_wandb = eval(unet_config['log_wandb'])
 wandb_project = unet_config['wandb_project']
 lr = float(unet_config['learning_rate'])
+radius = int(unet_config['radius'])
 
 # if wandb_project is not None:
 #     wandb_project == eval(wandb_project)
@@ -65,47 +66,58 @@ wandb_run_name = unet_config['wandb_run_name']
 log_every = unet_config['log_every']
 
 
-#initialize the Unet with the correct parameters, from the config file. 
-model = UNet(
-    in_channels=in_channels,
-    num_fmaps=num_fmaps,
-    fmap_inc_factor=fmap_inc_factor,
-    ndims=ndims,
-    downsample_factors=downsample_factors,
-    kernel_size_down=kernel_size_down,
-    kernel_size_up=kernel_size_up,
-    activation=activation,
-    constant_upsample=constant_upsample,
-    padding=padding,
-    final_activation=final_activation
-)
+# Guard the launch: gp.PreCache spawns worker processes, and because the Train
+# node has already initialized CUDA in this process, the default 'fork' start
+# method would copy the CUDA context / locked native threads into the workers and
+# deadlock them (no batches ever produced). 'spawn' starts clean interpreters
+# instead; under spawn each worker re-imports this module, so the launch must sit
+# behind a __main__ guard or it would recurse.
+if __name__ == "__main__":
+    import multiprocessing as mp
+    mp.set_start_method("spawn", force=True)
 
-loss_fct = weighted_MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-print(lr)
-print(type(lr))
+    #initialize the Unet with the correct parameters, from the config file.
+    model = UNet(
+        in_channels=in_channels,
+        num_fmaps=num_fmaps,
+        fmap_inc_factor=fmap_inc_factor,
+        ndims=ndims,
+        downsample_factors=downsample_factors,
+        kernel_size_down=kernel_size_down,
+        kernel_size_up=kernel_size_up,
+        activation=activation,
+        constant_upsample=constant_upsample,
+        padding=padding,
+        final_activation=final_activation
+    )
 
-train(
-    model = model, 
-    loss = loss_fct, 
-    optimizer = optimizer,
-    input_dir = input_dir,
-    output_dir = output_dir,
-    config_path = config_path,
-    n_training_steps = n_training_steps, 
-    input_shape = input_shapes,#[1, 64, 64, 64],
-    output_shape = output_shapes,#[1, 44, 24, 24],
-    batch_size = batch_size,#1,
-    prob_augment = prob_augment,#0.3, 
-    var_noise = var_noise,#10e-5,
-    neighborhood = neighborhood,
-    save_snapshots_every = save_snapshots_every, #100,
-    save_checkpoints_every = save_checkpoints_every, #100,
-    sparse_mask = sparse_mask, #True,
-    rotate_aug = rotate_aug, #False,
-    log_wandb = log_wandb, #True,
-    wandb_project = wandb_project, #"3DSegStuff",
-    wandb_run_name = wandb_run_name, #None,
-    log_every = log_every,
-    unet_config = unet_config,
-    boundary = boundary) # contents of the config dict, for saving to WanDB
+    loss_fct = weighted_MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    print(lr)
+    print(type(lr))
+
+    train(
+        model = model,
+        loss = loss_fct,
+        optimizer = optimizer,
+        input_dir = input_dir,
+        output_dir = output_dir,
+        config_path = config_path,
+        n_training_steps = n_training_steps,
+        input_shape = input_shapes,#[1, 64, 64, 64],
+        output_shape = output_shapes,#[1, 44, 24, 24],
+        batch_size = batch_size,#1,
+        prob_augment = prob_augment,#0.3,
+        var_noise = var_noise,#10e-5,
+        neighborhood = neighborhood,
+        save_snapshots_every = save_snapshots_every, #100,
+        save_checkpoints_every = save_checkpoints_every, #100,
+        sparse_mask = sparse_mask, #True,
+        rotate_aug = rotate_aug, #False,
+        log_wandb = log_wandb, #True,
+        wandb_project = wandb_project, #"3DSegStuff",
+        wandb_run_name = wandb_run_name, #None,
+        log_every = log_every,
+        unet_config = unet_config,
+        radius = radius,
+        boundary = boundary) # contents of the config dict, for saving to WanDB

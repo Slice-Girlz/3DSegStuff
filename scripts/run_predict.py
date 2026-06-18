@@ -81,10 +81,10 @@ model = UNet(
 
 predict(
     model,
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-YC/data_train_omezarr/260519_fish1_1zstack.ome.zarr/0',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-YC/model_pred/260519_fish1_1zstack.ome.zarr/pred_affs',
-    config_file_path = '/home/S-YC/3DSegStuff/scripts/config_files/config_unet.json',
-    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/2026-06-17_03-40-26/model_checkpoint_9000',
+    input_dir = '/mnt/efs/dl_jrc/student_data/S-EC/compiled_Janelia_atlases/mito24_converted/AP18_ch0_bottom.ome.zarr/0/',
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-EC/compiled_Janelia_atlases/ap18_prediction',
+    config_file_path = '/home/S-EC/3DSegStuff/scripts/config_files/config_unet.json',
+    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-EC/diam300/model_outputs/2026-06-17_22-04-27/model_checkpoint_3000',
     neighborhood = neighborhood, #should be same neighborhood as train
     input_shape = input_shapes, # should be same input_shape as train
     output_shape = output_shapes # should be same output_shape as train
