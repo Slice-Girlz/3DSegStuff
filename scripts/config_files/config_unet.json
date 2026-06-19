@@ -25,8 +25,8 @@
             "grow_boundary": 1
         }
     },
-    "input_dir" : "/mnt/efs/dl_jrc/student_data/S-EC/diam300/",
-    "output_dir" : "/mnt/efs/dl_jrc/student_data/S-EC/diam300/model_outputs/",
+    "input_dir" : "/mnt/efs/dl_jrc/student_data/S-HH/CellPoseSAM/training_datasets/",
+    "output_dir" : "/mnt/efs/dl_jrc/student_data/S-HH/CellPoseSAM/training_datasets/training_output",
     "config_path" : "3DSegStuff/scripts/config_files/config_unet.json", 
     "input_shape" : [1, 128, 128, 128],
     "output_shape" : [1, 88, 88, 88],
@@ -41,5 +41,5 @@
     "wandb_project" : "3DSegStuff",
     "wandb_run_name" : "None",
     "log_every" : 1,
-    "learning_rate": 1e-5
+    "learning_rate": 1e-4
 }
