@@ -47,7 +47,7 @@ var_noise = unet_config['var_noise']
 save_checkpoints_every = unet_config['save_checkpoints_every']
 save_snapshots_every = unet_config['save_snapshots_every']
 sparse_mask = eval(unet_config['sparse_mask'])
-radius = unet_config['radius']
+#radius = unet_config['radius']
 rotate_aug = eval(unet_config['rotate_aug'])
 log_wandb = eval(unet_config['log_wandb'])
 wandb_project = unet_config['wandb_project']
@@ -81,10 +81,10 @@ model = UNet(
 
 predict(
     model,
-    input_dir = '/mnt/efs/dl_jrc/student_data/S-YC/data_train_omezarr/260519_fish1_1zstack.ome.zarr/0',
-    output_dir = '/mnt/efs/dl_jrc/student_data/S-YC/model_pred/260519_fish1_1zstack.ome.zarr/pred_affs',
-    config_file_path = '/home/S-YC/3DSegStuff/scripts/config_files/config_unet.json',
-    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-YC/model_outputs/2026-06-17_03-40-26/model_checkpoint_9000',
+    input_dir = '/mnt/efs/dl_jrc/student_data/S-HH/CellPoseSAM/Cell10/new_ome-zarr-dset/Cell10_t21.ome.zarr/0',
+    output_dir = '/mnt/efs/dl_jrc/student_data/S-HH/CellPoseSAM/Cell10/new_ome-zarr-dset/Cell10_t21.ome.zarr/pred_affs',
+    config_file_path = '/home/S-HH/3DSegStuff/scripts/config_files/config_unet.json',
+    checkpoint_file_path = '/mnt/efs/dl_jrc/student_data/S-HH/CellPoseSAM/training_datasets/training_output/2026-06-18_13-28-51/model_checkpoint_10000',
     neighborhood = neighborhood, #should be same neighborhood as train
     input_shape = input_shapes, # should be same input_shape as train
     output_shape = output_shapes # should be same output_shape as train
