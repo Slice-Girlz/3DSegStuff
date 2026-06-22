@@ -136,10 +136,7 @@ def train(
    # Prepare size of requests
    # input_size = gp.Coordinate(input_shape[1:]) * voxel_size
    # output_size = gp.Coordinate(output_shape[1:]) * voxel_size
-   print(adj_slices)
    input_size = gp.Coordinate(adj_slices, *input_shape[1:]) * voxel_size
-   print(voxel_size)
-   print(input_size)
    output_size = gp.Coordinate(1, *output_shape[1:]) * voxel_size
 
    # Request a batch   
