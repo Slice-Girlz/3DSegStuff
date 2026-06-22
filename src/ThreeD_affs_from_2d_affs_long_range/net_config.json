@@ -1,0 +1,45 @@
+{
+    "num_fmaps": 9,
+    "num_fmaps_out": 9,
+    "fmap_inc_factor": 3,
+    "downsample_factors": [[1, 2, 2], [1, 2, 2]],
+    "kernel_size_down": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]],
+        [[1, 3, 3], [1, 3, 3]]
+    ],
+    "kernel_size_up": [
+        [[3, 3, 3], [3, 3, 3]],
+        [[3, 3, 3], [3, 3, 3]]
+    ],
+    "input_shape": [
+        20,
+        128,
+        128
+    ],
+    "output_shape": [
+        4,
+        88,
+        88
+    ],
+    "shape_increase": [
+        20,
+        128,
+        128
+    ],
+    "inputs": {
+        "2d_affs": {
+            "dims": 2, 
+            "neighborhood": [[1, 0], [0, 1]],
+	        "grow_boundary": 1
+        }
+    },
+    "outputs": {
+        "3d_affs": {
+            "dtype": "uint8",
+            "dims": 6,
+            "neighborhood": [[1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [0, 9, 0], [0, 0, 9]],
+	        "grow_boundary": 0
+        }
+    }
+}

@@ -1,0 +1,47 @@
+{
+    "in_channels": 6,
+    "num_fmaps": 12,
+    "fmap_inc_factor": 5,
+    "n_training_steps": 10000,
+    "downsample_factors": [[2, 2], [2, 2]],
+    "kernel_size_down": [
+        [[3, 3], [3, 3]],
+        [[3, 3], [3, 3]],
+        [[3, 3], [3, 3]]],
+    "kernel_size_up": [
+        [[3, 3], [3, 3]],
+        [[3, 3], [3, 3]]],
+    "activation" : "ReLU",
+    "final_activation" : "Sigmoid",
+    "num_fmaps_out": "None",
+    "num_heads": 1,
+    "constant_upsample" : "True",
+    "padding":"valid",
+    "outputs": {
+        "3d_affs": {
+            "dtype": "uint8",
+            "dims": 6,
+            "neighborhood": [[1, 0], [0, 1], [4, 0], [0, 4], [9, 0], [0, 9]],
+            "grow_boundary": 1
+        }
+    },
+    "input_dir" : "/mnt/efs/dl_jrc/student_data/S-MS/annotations_omezarr/train_val/",
+    "output_dir" : "/mnt/efs/dl_jrc/student_data/S-MS/model_outputs/",
+    "config_path" : "3DSegStuff/scripts/config_files/config_unet_ms.json", 
+    "input_shape" : [2, 128, 128],
+    "output_shape" : [6, 88, 88],
+    "batch_size" : 5,
+    "prob_augment" : 0.3, 
+    "var_noise" : 10e-5,
+    "save_snapshots_every" : 1000,
+    "save_checkpoints_every" : 1000,
+    "sparse_mask" : "True",
+    "rotate_aug" : "True",
+    "log_wandb" : "True",
+    "wandb_project" : "3DSegStuff",
+    "wandb_run_name" : "None",
+    "log_every" : 1,
+    "learning_rate": 1.0e-4,
+    "stack_infer" : "True",
+    "adj_slices" : 3
+}
